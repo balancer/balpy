@@ -10,7 +10,9 @@ python3 -m pip install balpy
 
 ### Build from source
 git clone https://github.com/gerrrg/balpy.git
+
 cd balpy
+
 python3 -m build
 
 ### Environment Variables
