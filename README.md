@@ -9,7 +9,7 @@ DISCLAIMER: While balpy is intended to be a useful tool to simplify interacting 
 python3 -m pip install balpy
 
 ### Build from source
-git clone <path/to/this/repo>
+git clone https://github.com/gerrrg/balpy.git
 cd balpy
 python3 -m build
 
