@@ -6,7 +6,7 @@ DISCLAIMER: While balpy is intended to be a useful tool to simplify interacting 
 ## Usage
 
 ### Install
-python3 -m pip install balpy
+python3 -m pip install balancer-python
 
 ### Build from source
 git clone https://github.com/gerrrg/balpy.git
