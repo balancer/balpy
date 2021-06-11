@@ -25,6 +25,7 @@ You must set three environment variables in order to use the balpy module
 After installing...
 
 cd samples
+
 python3 poolCreationSample.py samplePool.json
 
 More samples and functionality forthcoming
