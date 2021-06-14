@@ -10,7 +10,9 @@ python3 -m pip install balpy
 
 ### Build from source
 git clone https://github.com/gerrrg/balpy.git
+
 cd balpy
+
 python3 -m build
 
 ### Environment Variables
@@ -23,6 +25,7 @@ You must set three environment variables in order to use the balpy module
 After installing...
 
 cd samples
+
 python3 poolCreationSample.py samplePool.json
 
 More samples and functionality forthcoming
