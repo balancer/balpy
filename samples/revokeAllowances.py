@@ -31,6 +31,7 @@ def main():
 													gasPriceGweiOverride=5);
 		nonce += 1
 		hashes.append(txHash);
+
 	for txHash in hashes:
 		print(txHash)
 		bal.waitForTx(txHash);
