@@ -312,7 +312,7 @@ class balpy(object):
 	def erc20AsyncEnforceSufficientVaultAllowances(self, poolDescription, gasFactor, gasSpeed, nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 		nonce = self.web3.eth.get_transaction_count(self.web3.eth.default_account);
 		txHashes = [];
-		(tokens, checksumTokens) = self.balSortTokens(poolDescription);
+		(tokens, checksumTokens) = self.balSortTokens(list(poolDescription["tokens"].keys()));
 		for token in tokens:
 			targetAllowance = -1;
 			if "allowance" in poolDescription["tokens"][token].keys():
@@ -346,12 +346,10 @@ class balpy(object):
 		self.lastEtherscanCallTime = time.time();
 		return(response.json()["result"][self.etherscanSpeedDict[speed]]);
 
-	def balSortTokens(self, poolData):
-		tokensIn = poolData["tokens"];
-		tokens = list(tokensIn.keys());
-		tokens.sort();
-		checksumTokens = [self.web3.toChecksumAddress(t) for t in tokens];
-		return(tokens, checksumTokens);
+	def balSortTokens(self, tokensIn):
+		tokensIn.sort();
+		checksumTokens = [self.web3.toChecksumAddress(t) for t in tokensIn];
+		return(tokensIn, checksumTokens);
 
 	def balWeightsEqualOne(self, poolData):
 		tokenData = poolData["tokens"];
@@ -366,12 +364,16 @@ class balpy(object):
 			self.ERROR("Token weights add up to " + str(weightSum) + ", but they must add up to 1.0");
 		return(weightEqualsOne);
 
-	def balNormalizeTokens(self, poolData, key):
-		(tokens, checksumTokens) = self.balSortTokens(poolData);
+	def balConvertTokensToWei(self, tokens, amounts):
 		normalizedTokens = [];
-		for token in tokens:
+		if not len(tokens) == len(amounts):
+			self.ERROR("Array length mismatch with " + str(len(tokens)) + " tokens and " + str(len(amounts)) + " amounts.");
+			return(False);
+		numElements = len(tokens);
+		for i in range(numElements):
+			token = tokens[i];
+			rawValue = amounts[i];
 			decimals = self.erc20GetDecimals(token);
-			rawValue = poolData["tokens"][token][key];
 			normalized = int(rawValue * 10**decimals);
 			normalizedTokens.append(normalized);
 		return(normalizedTokens);
@@ -384,16 +386,24 @@ class balpy(object):
 
 	def balCreateFnWeightedPoolFactory(self, poolData):
 		factory = self.balGetFactoryContract("WeightedPoolFactory");
-		(tokens, checksumTokens) = self.balSortTokens(poolData);
+		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
 		intWithDecimalsWeights = [int(poolData["tokens"][t]["weight"] * 1e18) for t in tokens];
 		swapFeePercentage = int(poolData["swapFeePercent"] * 1e16);
+
+		owner = self.ZERO_ADDRESS;
+		if "owner" in poolData.keys():
+			ownerAddress = poolData["owner"];
+			if not len(ownerAddress) == 42:
+				self.ERROR("Entry for \"owner\" must be a 42 character Ethereum address beginning with \"0x\"");
+				return(False);
+			owner = self.web3.toChecksumAddress(ownerAddress);
 
 		createFunction = factory.functions.create(	poolData["name"], 
 													poolData["symbol"], 
 													checksumTokens, 
 													intWithDecimalsWeights, 
 													swapFeePercentage, 
-													self.ZERO_ADDRESS);
+													owner);
 		return(createFunction);
 
 	def balCreatePoolInFactory(self, poolFactoryName, poolDescription, gasFactor, gasPriceSpeed, nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
@@ -429,11 +439,15 @@ class balpy(object):
 		return(poolId);
 
 	def balRegisterPoolWithVault(self, poolDescription, poolId, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
-		normalizedInitBalances = self.balNormalizeTokens(poolDescription, "initialBalance");
+
+		(sortedTokens, checksumTokens) = self.balSortTokens(list(poolDescription["tokens"].keys()));
+		initialBalancesBySortedTokens = [poolDescription["tokens"][token]["initialBalance"] for token in sortedTokens];
+
+		normalizedInitBalances = self.balConvertTokensToWei(sortedTokens, initialBalancesBySortedTokens);
 		JOIN_KIND_INIT = 0;
 		initUserDataEncoded = eth_abi.encode_abi(	['uint256', 'uint256[]'], 
 	                      							[JOIN_KIND_INIT, normalizedInitBalances]);
-		(tokens, checksumTokens) = self.balSortTokens(poolDescription);
+		(tokens, checksumTokens) = self.balSortTokens(list(poolDescription["tokens"].keys()));
 		joinPoolRequestTuple = (checksumTokens, normalizedInitBalances, initUserDataEncoded.hex(), poolDescription["fromInternalBalance"]);
 		vault = self.web3.eth.contract(address=self.VAULT, abi=self.abis["Vault"]);
 		joinPoolFunction = vault.functions.joinPool(poolId, 
