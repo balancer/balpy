@@ -53,8 +53,15 @@ def main():
 	print("==============================================================")
 	print();
 
-	txHash = bal.balCreatePoolInFactory("WeightedPoolFactory", pool, gasFactor, gasSpeedApproval, gasPriceGweiOverride=6);
-	poolId = bal.balGetPoolIdFromHash(txHash);
+	if not "poolId" in pool.keys():
+		txHash = bal.balCreatePoolInFactory("WeightedPoolFactory", pool, gasFactor, gasSpeedApproval, gasPriceGweiOverride=6);
+		poolId = bal.balGetPoolIdFromHash(txHash);
+		pool["poolId"] = poolId;
+		with open(pathToPool, 'w') as f:
+			json.dump(pool, f, indent=4)
+	else:
+		print("PoolId found in pool description. Skipping the pool factory!")
+		poolId = pool["poolId"];
 	
 	print();
 	print("==============================================================")
