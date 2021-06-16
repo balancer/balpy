@@ -22,7 +22,7 @@ def main():
 	hashes = [];
 	for token in tokens:
 		print("Checking:", token)
-		allowance = bal.erc20GetAllowanceNormalized(token, bal.VAULT);
+		allowance = bal.erc20GetAllowanceStandard(token, bal.VAULT);
 		if allowance > 0:
 			txHash = bal.erc20SignAndSendNewAllowance(	token,
 														bal.VAULT,
