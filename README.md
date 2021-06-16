@@ -26,6 +26,10 @@ After installing...
 
 cd samples
 
+**For pool creation**
+
 python3 poolCreationSample.py samplePool.json
 
-More samples and functionality forthcoming
+**For swap samples**
+
+python3 batchSwapSample.py sample{Single/Multihop/Flash}Swap.json
