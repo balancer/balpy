@@ -3,6 +3,7 @@ import balpy
 def main():
 	gasFactor = 1.05;
 	gasSpeed = "fast";
+	gasOverride = 5;
 
 	network = "kovan"
 	tokens = [	"0xdFCeA9088c8A88A76FF74892C1457C17dfeef9C1",
@@ -20,20 +21,24 @@ def main():
 	nonce = bal.web3.eth.get_transaction_count(bal.web3.eth.default_account);
 	hashes = [];
 	for token in tokens:
-		print(token)
-		txHash = bal.erc20SignAndSendNewAllowance(	token, 
-													bal.VAULT, 
-													0, 
-													gasFactor, 
-													gasSpeed, 
-													nonceOverride=nonce, 
-													isAsync=True,
-													gasPriceGweiOverride=5);
-		nonce += 1
-		hashes.append(txHash);
+		print("Checking:", token)
+		allowance = bal.erc20GetAllowanceNormalized(token, bal.VAULT);
+		if allowance > 0:
+			txHash = bal.erc20SignAndSendNewAllowance(	token,
+														bal.VAULT,
+														0,
+														gasFactor,
+														gasSpeed,
+														nonceOverride=nonce,
+														isAsync=True,
+														gasPriceGweiOverride=gasOverride);
+			nonce += 1
+			hashes.append(txHash);
+			print("\tRevoking allowance -- txHash:", txHash)
+		else:
+			print("\tNo allowance. Skipping...")
 
 	for txHash in hashes:
-		print(txHash)
 		bal.waitForTx(txHash);
 		
 if __name__ == '__main__':
