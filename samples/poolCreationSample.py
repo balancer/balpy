@@ -33,7 +33,9 @@ def main():
 	print("==============================================================")
 	print();
 	
-	if not bal.erc20HasSufficientBalances(pool):
+	tokens = list(pool["tokens"].keys());
+	initialBalances = [pool["tokens"][token]["initialBalance"] for token in tokens];
+	if not bal.erc20HasSufficientBalances(tokens, initialBalances):
 		print("Please fix your insufficient balance before proceeding.")
 		print("Quitting...")
 		quit();
@@ -44,8 +46,10 @@ def main():
 	print("==============================================================")
 	print();
 
+	(tokensSorted, allowancesSorted) = bal.erc20GetTargetAllowancesFromPoolData(pool);
+	initialBalancesSorted = [pool["tokens"][token]["initialBalance"] for token in tokensSorted];
 	# Async: Do [Approve]*N then [Wait]*N instead of [Approve, Wait]*N
-	bal.erc20AsyncEnforceSufficientVaultAllowances(pool, gasFactor, gasSpeedApproval);
+	bal.erc20AsyncEnforceSufficientVaultAllowances(tokensSorted, allowancesSorted, initialBalancesSorted, gasFactor, gasSpeedApproval);
 
 	print();
 	print("==============================================================")
