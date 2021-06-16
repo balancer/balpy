@@ -305,7 +305,7 @@ class balpy(object):
 										gasPriceGweiOverride,
 										isAsync):
 		if not self.erc20HasSufficientAllowance(tokenAddress, allowedAddress, amount):
-			if targetAllowance == -1:
+			if targetAllowance == -1 or targetAllowance == self.INFINITE:
 				targetAllowance = self.INFINITE;
 			else:
 				decimals = self.erc20GetDecimals(tokenAddress);
