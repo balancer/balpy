@@ -260,25 +260,29 @@ class balpy(object):
 		print();
 		return(sufficient);
 	
-	def erc20HasSufficientBalances(self, poolDescription):
-		tokenData = poolDescription["tokens"];
-		tokens = list(tokenData.keys());
+	def erc20HasSufficientBalances(self, tokens, amounts):
+		if not len(tokens) == len(amounts):
+			self.ERROR("Array length mismatch with " + str(len(tokens)) + " tokens and " + str(len(amounts)) + " amounts.");
+			return(False);
+		numElements = len(tokens);
 		sufficientBalance = True;
-		for token in tokens:
-			spendAmount = tokenData[token]["initialBalance"];
-			currentHasSufficientBalance = self.erc20HasSufficientBalance(token, spendAmount);
+		for i in range(numElements):
+			token = tokens[i];
+			amount = amounts[i];
+			currentHasSufficientBalance = self.erc20HasSufficientBalance(token, amount);
 			sufficientBalance &= currentHasSufficientBalance;
 		return(sufficientBalance);
 
-	def erc20HasSufficientAllowance(self, tokenAddress, allowedAddress):	
+	def erc20HasSufficientAllowance(self, tokenAddress, allowedAddress, amount):
 		currentAllowance = self.erc20GetAllowanceNormalized(tokenAddress, allowedAddress);
 		balance = self.erc20GetBalanceNormalized(tokenAddress);
 
 		print("Token:", tokenAddress);
 		print("\tCurrent Allowance:", currentAllowance);
 		print("\tCurrent Balance:", balance);
+		print("\tAmount to Spend:", amount);
 
-		sufficient = (currentAllowance >= balance);
+		sufficient = (currentAllowance >= amount);
 
 		if not sufficient:
 			print("\tInsufficient allowance!");
@@ -288,17 +292,18 @@ class balpy(object):
 		print();
 		return(sufficient);
 
-	def erc20EnforceSufficientAllowance(self, 
-										tokenAddress, 
-										allowedAddress, 
-										targetAllowance, 
+	def erc20EnforceSufficientAllowance(self,
+										tokenAddress,
+										allowedAddress,
+										targetAllowance,
+										amount,
 										gasFactor,
 										gasSpeed,
-										nonceOverride, 
-										gasEstimateOverride, 
+										nonceOverride,
+										gasEstimateOverride,
 										gasPriceGweiOverride,
 										isAsync):
-		if not self.erc20HasSufficientAllowance(tokenAddress, allowedAddress):
+		if not self.erc20HasSufficientAllowance(tokenAddress, allowedAddress, amount):
 			if targetAllowance == -1:
 				targetAllowance = self.INFINITE;
 			print("Insufficient Allowance. Increasing allowance to", targetAllowance);
@@ -306,21 +311,34 @@ class balpy(object):
 			return(txHash);
 		return(None);
 
-	def erc20EnforceSufficientVaultAllowance(self, tokenAddress, targetAllowance, gasFactor, gasSpeed, nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1, isAsync=False):
-		return(self.erc20EnforceSufficientAllowance(tokenAddress, self.VAULT, targetAllowance, gasFactor, gasSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride, isAsync));
+	def erc20EnforceSufficientVaultAllowance(self, tokenAddress, targetAllowance, amount, gasFactor, gasSpeed, nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1, isAsync=False):
+		return(self.erc20EnforceSufficientAllowance(tokenAddress, self.VAULT, targetAllowance, amount, gasFactor, gasSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride, isAsync));
 
-	def erc20AsyncEnforceSufficientVaultAllowances(self, poolDescription, gasFactor, gasSpeed, nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
-		nonce = self.web3.eth.get_transaction_count(self.web3.eth.default_account);
-		txHashes = [];
+	def erc20GetTargetAllowancesFromPoolData(self, poolDescription):
 		(tokens, checksumTokens) = self.balSortTokens(list(poolDescription["tokens"].keys()));
+		allowances = [];
 		for token in tokens:
 			targetAllowance = -1;
 			if "allowance" in poolDescription["tokens"][token].keys():
 				targetAllowance = poolDescription["tokens"][token]["allowance"];
 			if targetAllowance == -1:
 				targetAllowance = self.INFINITE;
+			allowances.append(targetAllowance);
+		return(tokens, allowances);
 
-			txHash = self.erc20EnforceSufficientVaultAllowance(token, targetAllowance, gasFactor, gasSpeed, nonceOverride=nonce, isAsync=True);
+	def erc20AsyncEnforceSufficientVaultAllowances(self, tokens, targetAllowances, amounts, gasFactor, gasSpeed, nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		if not len(tokens) == len(targetAllowances):
+			self.ERROR("Array length mismatch with " + str(len(tokens)) + " tokens and " + str(len(targetAllowances)) + " targetAllowances.");
+			return(False);
+
+		nonce = self.web3.eth.get_transaction_count(self.web3.eth.default_account);
+		txHashes = [];
+		numElements = len(tokens);
+		for i in range(numElements):
+			token = tokens[i];
+			targetAllowance = targetAllowances[i];
+			amount = amounts[i];
+			txHash = self.erc20EnforceSufficientVaultAllowance(token, targetAllowance, amount, gasFactor, gasSpeed, nonceOverride=nonce, isAsync=True);
 			if not txHash is None:
 				txHashes.append(txHash);
 				nonce += 1;
