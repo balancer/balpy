@@ -310,6 +310,7 @@ class balpy(object):
 			else:
 				decimals = self.erc20GetDecimals(tokenAddress);
 				targetAllowance = targetAllowance * 10**decimals;
+			targetAllowance = int(targetAllowance);
 			print("Insufficient Allowance. Increasing allowance to", targetAllowance);
 			txHash = self.erc20SignAndSendNewAllowance(tokenAddress, allowedAddress, targetAllowance, gasFactor, gasSpeed, nonceOverride=nonceOverride, isAsync=isAsync);
 			return(txHash);
