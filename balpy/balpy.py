@@ -214,17 +214,17 @@ class balpy(object):
 		self.decimals[tokenAddress] = decimals;
 		return(decimals);
 
-	def erc20GetBalanceNormalized(self, tokenAddress):
+	def erc20GetBalanceStandard(self, tokenAddress):
 		token = self.erc20GetContract(tokenAddress);
 		decimals = self.erc20GetDecimals(tokenAddress);
-		normalizedBalance = token.functions.balanceOf(self.address).call() * 10**(-decimals);
-		return(normalizedBalance);
+		standardBalance = token.functions.balanceOf(self.address).call() * 10**(-decimals);
+		return(standardBalance);
 
-	def erc20GetAllowanceNormalized(self, tokenAddress, allowedAddress):
+	def erc20GetAllowanceStandard(self, tokenAddress, allowedAddress):
 		token = self.erc20GetContract(tokenAddress);
 		decimals = self.erc20GetDecimals(tokenAddress);
-		normalizedAllowance = token.functions.allowance(self.address,allowedAddress).call() * 10**(-decimals);
-		return(normalizedAllowance);
+		standardAllowance = token.functions.allowance(self.address,allowedAddress).call() * 10**(-decimals);
+		return(standardAllowance);
 
 	def erc20BuildFunctionSetAllowance(self, tokenAddress, allowedAddress, allowance):
 		token = self.erc20GetContract(tokenAddress);
@@ -247,7 +247,7 @@ class balpy(object):
 		return(txHash);
 
 	def erc20HasSufficientBalance(self, tokenAddress, amountToUse):
-		balance = self.erc20GetBalanceNormalized(tokenAddress);
+		balance = self.erc20GetBalanceStandard(tokenAddress);
 		print("Token:", tokenAddress);
 		print("\tNeed:", amountToUse);
 		print("\tWallet has:", balance);
@@ -274,8 +274,8 @@ class balpy(object):
 		return(sufficientBalance);
 
 	def erc20HasSufficientAllowance(self, tokenAddress, allowedAddress, amount):
-		currentAllowance = self.erc20GetAllowanceNormalized(tokenAddress, allowedAddress);
-		balance = self.erc20GetBalanceNormalized(tokenAddress);
+		currentAllowance = self.erc20GetAllowanceStandard(tokenAddress, allowedAddress);
+		balance = self.erc20GetBalanceStandard(tokenAddress);
 
 		print("Token:", tokenAddress);
 		print("\tCurrent Allowance:", currentAllowance);
@@ -383,7 +383,7 @@ class balpy(object):
 		return(weightEqualsOne);
 
 	def balConvertTokensToWei(self, tokens, amounts):
-		normalizedTokens = [];
+		rawTokens = [];
 		if not len(tokens) == len(amounts):
 			self.ERROR("Array length mismatch with " + str(len(tokens)) + " tokens and " + str(len(amounts)) + " amounts.");
 			return(False);
@@ -392,9 +392,9 @@ class balpy(object):
 			token = tokens[i];
 			rawValue = amounts[i];
 			decimals = self.erc20GetDecimals(token);
-			normalized = int(rawValue * 10**decimals);
-			normalizedTokens.append(normalized);
-		return(normalizedTokens);
+			raw = int(rawValue * 10**decimals);
+			rawTokens.append(raw);
+		return(rawTokens);
 
 	def balGetFactoryContract(self, poolFactoryName):
 		address = self.contractAddresses[poolFactoryName];
@@ -461,12 +461,12 @@ class balpy(object):
 		(sortedTokens, checksumTokens) = self.balSortTokens(list(poolDescription["tokens"].keys()));
 		initialBalancesBySortedTokens = [poolDescription["tokens"][token]["initialBalance"] for token in sortedTokens];
 
-		normalizedInitBalances = self.balConvertTokensToWei(sortedTokens, initialBalancesBySortedTokens);
+		rawInitBalances = self.balConvertTokensToWei(sortedTokens, initialBalancesBySortedTokens);
 		JOIN_KIND_INIT = 0;
 		initUserDataEncoded = eth_abi.encode_abi(	['uint256', 'uint256[]'], 
-	                      							[JOIN_KIND_INIT, normalizedInitBalances]);
+													[JOIN_KIND_INIT, rawInitBalances]);
 		(tokens, checksumTokens) = self.balSortTokens(list(poolDescription["tokens"].keys()));
-		joinPoolRequestTuple = (checksumTokens, normalizedInitBalances, initUserDataEncoded.hex(), poolDescription["fromInternalBalance"]);
+		joinPoolRequestTuple = (checksumTokens, rawInitBalances, initUserDataEncoded.hex(), poolDescription["fromInternalBalance"]);
 		vault = self.web3.eth.contract(address=self.VAULT, abi=self.abis["Vault"]);
 		joinPoolFunction = vault.functions.joinPool(poolId, 
 												self.web3.toChecksumAddress(self.web3.eth.default_account), 
@@ -476,3 +476,78 @@ class balpy(object):
 		print("Transaction Generated!");		
 		txHash = self.sendTx(tx);
 		return(txHash);
+
+	def balSwapIsFlashSwap(self, swapDescription):
+		for amount in swapDescription["limits"]:
+			if not int(amount) == 0:
+				return(False);
+		return(True);
+
+	def balReorderTokenDicts(self, tokens):
+		originalIdxToSortedIdx = {};
+		sortedIdxToOriginalIdx = {};
+		tokenAddressToIdx = {};
+		for i in range(len(tokens)):
+			tokenAddressToIdx[tokens[i]] = i;
+		sortedTokens = tokens;
+		sortedTokens.sort();
+		for i in range(len(sortedTokens)):
+			originalIdxToSortedIdx[tokenAddressToIdx[sortedTokens[i]]] = i;
+			sortedIdxToOriginalIdx[i] = tokenAddressToIdx[sortedTokens[i]];
+		return(sortedTokens, originalIdxToSortedIdx, sortedIdxToOriginalIdx);
+
+	def balSwapGetUserData(self, poolType):
+		userDataNull = eth_abi.encode_abi(['uint256'], [0]);
+		userData = userDataNull;
+		#for weightedPools, user data is just null, but in the future there may be userData to pass to pools for swaps
+		# if poolType == "someFuturePool":
+		# 	userData = "something else";
+		return(userData);
+
+	def balDoBatchSwap(self, swapDescription, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		batchSwapFn = self.balCreateFnBatchSwap(swapDescription);
+		tx = self.buildTx(batchSwapFn, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
+		txHash = self.sendTx(tx, isAsync);
+		return(txHash);
+
+	def balCreateFnBatchSwap(self, swapDescription):
+		(sortedTokens, originalIdxToSortedIdx, sortedIdxToOriginalIdx) = self.balReorderTokenDicts(swapDescription["assets"]);
+		numTokens = len(sortedTokens);
+
+		# reorder the limits to refer to properly sorted tokens
+		reorderedLimits = [];
+		for i in range(numTokens):
+			currLimit = int(swapDescription["limits"][sortedIdxToOriginalIdx[i]]);
+			reorderedLimits.append(currLimit)
+
+		kind = int(swapDescription["kind"]);
+		assets = [self.web3.toChecksumAddress(token) for token in sortedTokens];
+
+		swapsTuples = [];
+		for swap in swapDescription["swaps"]:
+			idxSortedIn = originalIdxToSortedIdx[int(swap["assetInIndex"])];
+			idxSortedOut = originalIdxToSortedIdx[int(swap["assetOutIndex"])];
+			decimals = self.erc20GetDecimals(sortedTokens[idxSortedIn]);
+			amount = int( float(swap["amount"]) * 10**(decimals) );
+
+			swapsTuple = (	swap["poolId"],
+							idxSortedIn,
+							idxSortedOut,
+							amount,
+							self.balSwapGetUserData(None));
+			swapsTuples.append(swapsTuple);
+
+		funds = (	self.web3.toChecksumAddress(swapDescription["funds"]["sender"]),
+					swapDescription["funds"]["fromInternalBalance"],
+					self.web3.toChecksumAddress(swapDescription["funds"]["recipient"]),
+					swapDescription["funds"]["toInternalBalance"]);
+		intReorderedLimits = [int(element) for element in reorderedLimits];
+		deadline = int(swapDescription["deadline"]);
+		vault = self.web3.eth.contract(address=self.VAULT, abi=self.abis["Vault"]);
+		batchSwapFunction = vault.functions.batchSwap(	kind,
+														swapsTuples,
+														assets,
+														funds,
+														intReorderedLimits,
+														deadline);
+		return(batchSwapFunction);
