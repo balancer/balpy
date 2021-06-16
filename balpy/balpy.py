@@ -248,11 +248,12 @@ class balpy(object):
 
 	def erc20HasSufficientBalance(self, tokenAddress, amountToUse):
 		balance = self.erc20GetBalanceStandard(tokenAddress);
-		print("Token:", tokenAddress);
-		print("\tNeed:", amountToUse);
-		print("\tWallet has:", balance);
 
-		sufficient = balance > amountToUse;
+		print("Token:", tokenAddress);
+		print("\tNeed:", float(amountToUse));
+		print("\tWallet has:", float(balance));
+
+		sufficient = (float(balance) >= float(amountToUse));
 		if not sufficient:
 			self.ERROR("Insufficient Balance!");
 		else:
@@ -306,6 +307,9 @@ class balpy(object):
 		if not self.erc20HasSufficientAllowance(tokenAddress, allowedAddress, amount):
 			if targetAllowance == -1:
 				targetAllowance = self.INFINITE;
+			else:
+				decimals = self.erc20GetDecimals(tokenAddress);
+				targetAllowance = targetAllowance * 10**decimals;
 			print("Insufficient Allowance. Increasing allowance to", targetAllowance);
 			txHash = self.erc20SignAndSendNewAllowance(tokenAddress, allowedAddress, targetAllowance, gasFactor, gasSpeed, nonceOverride=nonceOverride, isAsync=isAsync);
 			return(txHash);
@@ -479,7 +483,7 @@ class balpy(object):
 
 	def balSwapIsFlashSwap(self, swapDescription):
 		for amount in swapDescription["limits"]:
-			if not int(amount) == 0:
+			if not float(amount) == 0.0:
 				return(False);
 		return(True);
 
@@ -517,8 +521,10 @@ class balpy(object):
 		# reorder the limits to refer to properly sorted tokens
 		reorderedLimits = [];
 		for i in range(numTokens):
-			currLimit = int(swapDescription["limits"][sortedIdxToOriginalIdx[i]]);
-			reorderedLimits.append(currLimit)
+			currLimitStandard = float(swapDescription["limits"][sortedIdxToOriginalIdx[i]]);
+			decimals = self.erc20GetDecimals(sortedTokens[i]);
+			currLimitRaw = int(currLimitStandard * 10**(decimals))
+			reorderedLimits.append(currLimitRaw)
 
 		kind = int(swapDescription["kind"]);
 		assets = [self.web3.toChecksumAddress(token) for token in sortedTokens];
