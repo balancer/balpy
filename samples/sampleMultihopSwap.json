@@ -1,0 +1,37 @@
+{
+    "network": "kovan",
+    "batchSwap":{
+      "kind": "0", 
+      "assets": [ 
+        "0x1C8E3Bcb3378a443CC591f154c5CE0EBb4dA9648",
+        "0x04DF6e4121c27713ED22341E7c7Df330F56f289B",
+        "0x8F4beBF498cc624a0797Fe64114A6Ff169EEe078"
+      ],
+      "limits": [ 
+        0.0001,
+        0,
+        0
+      ],
+      "swaps": [
+        {
+          "poolId": "0x702605f43471183158938c1a3e5f5a359d7b31ba000100000000000000000070",
+          "assetInIndex": 0,
+          "assetOutIndex": 1,
+          "amount": 0.0001
+        },
+        {
+          "poolId": "0x4e7f40cd37cee710f5e87ad72959d30ef8a01a5d00020000000000000000000b",
+          "assetInIndex": 1,
+          "assetOutIndex": 2,
+          "amount": 0
+        }
+      ],
+      "funds": {
+        "sender": "0x975EefE53305c0c5480aeC00cea22e8b36250C05",
+        "recipient": "0x975EefE53305c0c5480aeC00cea22e8b36250C05",
+        "fromInternalBalance": false,
+        "toInternalBalance": false
+      },
+      "deadline": "999999999999999999"
+    }
+}
