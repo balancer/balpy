@@ -5,7 +5,7 @@
     "poolType": "StablePool",
     "swapFeePercent": 3.0,
     "fromInternalBalance": false,
-    "amplificationParameter": 200,
+    "amplificationParameter": 2000,
     "owner": "0x0000000000000000000000000000000000000000",
     "tokens": {
         "0xc2569dd7d0fd715B054fBf16E75B001E5c0C1115": {
