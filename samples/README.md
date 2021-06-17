@@ -19,12 +19,12 @@ You must set three environment variables in order to use the balpy module
 ### Pool Creation
 - Go to poolCreation/ directory
 - Edit your desired pool description json
-python3 poolCreationSample.py sample{Weighted, Oracle, Stable}Pool.json
+- python3 poolCreationSample.py sample{Weighted, Oracle, Stable}Pool.json
 
 ### Swaps
 - Go to batchSwaps/ directory
 - Edit your desired swap type json
-python3 batchSwapSample.py sample{Single, Multihop, Flash}Swap.json
+- python3 batchSwapSample.py sample{Single, Multihop, Flash}Swap.json
 
 ### Misc 
 - Go to misc/ directory
