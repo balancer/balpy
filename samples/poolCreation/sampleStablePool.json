@@ -1,0 +1,25 @@
+{
+    "network": "kovan",
+    "name": "Python Test Stable Pool",
+    "symbol": "PTSP",
+    "poolType": "StablePool",
+    "swapFeePercent": 3.0,
+    "fromInternalBalance": false,
+    "amplificationParameter": 200,
+    "owner": "0x0000000000000000000000000000000000000000",
+    "tokens": {
+        "0xc2569dd7d0fd715B054fBf16E75B001E5c0C1115": {
+            "initialBalance": 1000,
+            "allowance": -1
+        },
+        "0x04DF6e4121c27713ED22341E7c7Df330F56f289B": {
+            "initialBalance": 1000,
+            "allowance": -1
+        },
+        "0xcC08220af469192C53295fDd34CFb8DF29aa17AB": {
+            "initialBalance": 1000,
+            "allowance": -1
+        }
+    },
+    "poolId": "43c2fd916f0c38e260afb91ea3bec6560e672b230000000000000000000000c4"
+}
