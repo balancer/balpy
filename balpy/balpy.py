@@ -26,10 +26,12 @@ class balpy(object):
 	"""
 
 	# Contract addresses -- same across mainnet and testnets
-	VAULT =                  '0xBA12222222228d8Ba445958a75a0704d566BF2C8';
-	WEIGHTED_POOL_FACTORY =  '0x8E9aa87E45e92bad84D5F8DD1bff34Fb92637dE9';
-	DELEGATE_OWNER =         '0xBA1BA1ba1BA1bA1bA1Ba1BA1ba1BA1bA1ba1ba1B';
-	ZERO_ADDRESS =           '0x0000000000000000000000000000000000000000';
+	VAULT =                  			'0xBA12222222228d8Ba445958a75a0704d566BF2C8';
+	WEIGHTED_POOL_FACTORY =  			'0x8E9aa87E45e92bad84D5F8DD1bff34Fb92637dE9';
+	WEIGHTED_POOL_2_TOKENS_FACTORY =		'0xA5bf2ddF098bb0Ef6d120C98217dD6B141c74EE0';
+	STABLE_POOL_FACTORY =				'0xA9B3f46761F3A47056F39724FB5D9560f3629fB8';
+	DELEGATE_OWNER =         			'0xBA1BA1ba1BA1bA1bA1Ba1BA1ba1BA1bA1ba1ba1B';
+	ZERO_ADDRESS =           			'0x0000000000000000000000000000000000000000';
 
 	# Constants
 	INFINITE = 2 ** 256 - 1; #for infinite unlock
@@ -53,9 +55,17 @@ class balpy(object):
 						"kovan":	{"id":42,	"etherscanSubdomain":"kovan."}};
 
 	# ABIs, Artifacts
-	artifacts = ["Vault", "WeightedPoolFactory"];
 	abis = {};
-	contractAddresses = {"Vault":VAULT, "WeightedPoolFactory":WEIGHTED_POOL_FACTORY};
+	artifacts = [	"Vault",
+					"WeightedPoolFactory",
+					"WeightedPool2TokensFactory",
+					"StablePoolFactory"
+				];
+	contractAddresses = {	"Vault":VAULT,
+							"WeightedPoolFactory":WEIGHTED_POOL_FACTORY,
+							"WeightedPool2TokensFactory":WEIGHTED_POOL_2_TOKENS_FACTORY,
+							"StablePoolFactory":STABLE_POOL_FACTORY
+						};
 	
 	decimals = {};
 	erc20Contracts = {};
@@ -413,6 +423,9 @@ class balpy(object):
 		intWithDecimalsWeights = [int(poolData["tokens"][t]["weight"] * 1e18) for t in tokens];
 		swapFeePercentage = int(poolData["swapFeePercent"] * 1e16);
 
+		if not self.balWeightsEqualOne(poolData):
+			return(False);
+
 		owner = self.ZERO_ADDRESS;
 		if "owner" in poolData.keys():
 			ownerAddress = poolData["owner"];
@@ -429,18 +442,62 @@ class balpy(object):
 													owner);
 		return(createFunction);
 
-	def balCreatePoolInFactory(self, poolFactoryName, poolDescription, gasFactor, gasPriceSpeed, nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
-		createFunction = None;
+	def balCreateFnWeightedPool2TokensFactory(self, poolData):
+		factory = self.balGetFactoryContract("WeightedPool2TokensFactory");
+		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
 		
+		if not len(tokens) == 2:
+			self.ERROR("WeightedPool2TokensFactory requires 2 tokens, but", len(tokens), "were given.");
+			return(False);
+
+		if not self.balWeightsEqualOne(poolData):
+			return(False);
+
+		intWithDecimalsWeights = [int(poolData["tokens"][t]["weight"] * 1e18) for t in tokens];
+		swapFeePercentage = int(poolData["swapFeePercent"] * 1e16);
+
+		owner = self.ZERO_ADDRESS;
+		if "owner" in poolData.keys():
+			ownerAddress = poolData["owner"];
+			if not len(ownerAddress) == 42:
+				self.ERROR("Entry for \"owner\" must be a 42 character Ethereum address beginning with \"0x\"");
+				return(False);
+			owner = self.web3.toChecksumAddress(ownerAddress);
+
+		oracleEnabled = False;
+		if "oracleEnabled" in poolData.keys():
+			oracleEnabled = poolData["oracleEnabled"];
+			if isinstance(oracleEnabled, str):
+				if oracleEnabled.lower() == "true":
+					oracleEnabled = True;
+				else:
+					oracleEnabled = False;
+
+		createFunction = factory.functions.create(	poolData["name"],
+													poolData["symbol"],
+													checksumTokens,
+													intWithDecimalsWeights,
+													swapFeePercentage,
+													oracleEnabled,
+													owner);
+		return(createFunction);
+
+	def balCreatePoolInFactory(self, poolDescription, gasFactor, gasPriceSpeed, nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		createFunction = None;
+		poolFactoryName = poolDescription["poolType"] + "Factory";
+
 		# list of all supported pool factories
 		# NOTE: when you add a pool factory to this list, be sure to
 		# 		add it to the printout of supported factories below
 		if poolFactoryName == "WeightedPoolFactory":
 			createFunction = self.balCreateFnWeightedPoolFactory(poolDescription);
+		if poolFactoryName == "WeightedPool2TokensFactory":
+			createFunction = self.balCreateFnWeightedPool2TokensFactory(poolDescription);
 		if createFunction is None:
 			print("No pool factory found with name:", poolFactoryName);
-			print("Currently supported pool factories are:");
-			print("\tWeightedPoolFactory");
+			print("Currently supported pool types are:");
+			print("\tWeightedPool");
+			print("\tWeightedPool2Token");
 			return(False);
 
 		print("Pool function created, generating transaction...");
