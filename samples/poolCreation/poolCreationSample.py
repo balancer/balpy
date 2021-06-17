@@ -20,12 +20,7 @@ def main():
 	gasFactor = 1.05;
 	gasSpeedApproval = "fast";
 
-	# bal = balpy.balpy(pool["network"]);
 	bal = balpy.balpy.balpy(pool["network"]);
-
-	# verify weights
-	if not bal.balWeightsEqualOne(pool):
-		quit();
 
 	print();
 	print("==============================================================")
@@ -58,7 +53,7 @@ def main():
 	print();
 
 	if not "poolId" in pool.keys():
-		txHash = bal.balCreatePoolInFactory("WeightedPoolFactory", pool, gasFactor, gasSpeedApproval, gasPriceGweiOverride=6);
+		txHash = bal.balCreatePoolInFactory(pool, gasFactor, gasSpeedApproval, gasPriceGweiOverride=6);
 		poolId = bal.balGetPoolIdFromHash(txHash);
 		pool["poolId"] = poolId;
 		with open(pathToPool, 'w') as f:
