@@ -1,7 +1,7 @@
 {
     "network": "kovan",
-    "name": "Python Test Pool",
-    "symbol": "PTP",
+    "name": "Python Test Weighted Pool",
+    "symbol": "PTWP",
     "poolType": "WeightedPool",
     "swapFeePercent": 3.0,
     "fromInternalBalance": false,
