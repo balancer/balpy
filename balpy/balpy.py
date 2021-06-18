@@ -28,7 +28,7 @@ class balpy(object):
 	# Contract addresses -- same across mainnet and testnets
 	VAULT =                  			'0xBA12222222228d8Ba445958a75a0704d566BF2C8';
 	WEIGHTED_POOL_FACTORY =  			'0x8E9aa87E45e92bad84D5F8DD1bff34Fb92637dE9';
-	WEIGHTED_POOL_2_TOKENS_FACTORY =		'0xA5bf2ddF098bb0Ef6d120C98217dD6B141c74EE0';
+	WEIGHTED_POOL_2_TOKENS_FACTORY =	'0xA5bf2ddF098bb0Ef6d120C98217dD6B141c74EE0';
 	STABLE_POOL_FACTORY =				'0xA9B3f46761F3A47056F39724FB5D9560f3629fB8';
 	DELEGATE_OWNER =         			'0xBA1BA1ba1BA1bA1bA1Ba1BA1ba1BA1bA1ba1ba1B';
 	ZERO_ADDRESS =           			'0x0000000000000000000000000000000000000000';
@@ -40,6 +40,7 @@ class balpy(object):
 	envVarEtherscan = 	"KEY_API_ETHERSCAN";
 	envVarInfura = 		"KEY_API_INFURA";
 	envVarPrivate = 	"KEY_PRIVATE";
+	envVarCustomRPC = 	"BALPY_CUSTOM_RPC";
 	
 	# Etherscan API call management	
 	lastEtherscanCallTime = 0;
@@ -51,8 +52,9 @@ class balpy(object):
 	};
 
 	# Network parameters
-	networkParams = {	"mainnet":	{"id":1,	"etherscanSubdomain":""},
-						"kovan":	{"id":42,	"etherscanSubdomain":"kovan."}};
+	networkParams = {	"mainnet":	{"id":1,	"etherscanURL":"etherscan.io"},
+						"kovan":	{"id":42,	"etherscanURL":"kovan.etherscan.io"},
+						"polygon":	{"id":137,	"etherscanURL":"polygonscan.com"}};
 
 	# ABIs, Artifacts
 	abis = {};
@@ -87,21 +89,30 @@ class balpy(object):
 		else:
 			print("Network is set to", network);
 
-		self.etherscanApiKey = 		os.environ.get(self.envVarEtherscan);
 		self.infuraApiKey = 		os.environ.get(self.envVarInfura);
+		self.customRPC = 			os.environ.get(self.envVarCustomRPC);
+		self.etherscanApiKey = 		os.environ.get(self.envVarEtherscan);
 		self.privateKey =  			os.environ.get(self.envVarPrivate);
-		if self.etherscanApiKey is None or self.infuraApiKey is None or self.privateKey is None:
+
+		if self.infuraApiKey is None and self.customRPC is None:
+			self.ERROR("You need to add your infuraApiKey or customRPC environment variables");
+			print("\t\texport " + self.envVarInfura + "=<yourInfuraApiKey>");
+			print("\t\t\tOR")
+			print("\t\texport " + self.envVarCustomRPC + "=<yourCustomRPC>");
+			print("\n\t\tNOTE: if you set " + self.envVarCustomRPC + ", it will override your Infura API key!")
+			quit();
+
+		if self.etherscanApiKey is None or self.privateKey is None:
 			self.ERROR("You need to add your keys to the your environment variables");
 			print("\t\texport " + self.envVarEtherscan + "=<yourEtherscanApiKey>");
-			print("\t\texport " + self.envVarInfura + "=<yourInfuraApiKey>");
 			print("\t\texport " + self.envVarPrivate + "=<yourPrivateKey>");
 			quit();
 
 		self.network = network;
+		endpoint = self.customRPC;
+		if endpoint is None:
+			endpoint = 'https://' + self.network + '.infura.io/v3/' + self.infuraApiKey;
 
-		# TODO: add non-Infura HTTPProvider
-		# connect to infura, set wallet
-		endpoint = 'https://' + self.network + '.infura.io/v3/' + self.infuraApiKey;
 		self.web3 = Web3(Web3.HTTPProvider(endpoint));
 		acct = self.web3.eth.account.privateKeyToAccount(self.privateKey);
 		self.web3.eth.default_account = acct.address;
@@ -174,7 +185,7 @@ class balpy(object):
 		txHash = self.web3.eth.send_raw_transaction(signedTx.rawTransaction).hex();
 
 		print("Sending transaction, view progress at:");
-		print("\thttps://"+self.networkParams[self.network]["etherscanSubdomain"]+"etherscan.io/tx/"+txHash);
+		print("\thttps://"+self.networkParams[self.network]["etherscanURL"]+"/tx/"+txHash);
 		
 		if not isAsync:
 			self.waitForTx(txHash);
@@ -554,6 +565,11 @@ class balpy(object):
 		print("Transaction Generated!");		
 		txHash = self.sendTx(tx);
 		return(txHash);
+
+	def balVaultWeth(self):
+		vault = self.web3.eth.contract(address=self.VAULT, abi=self.abis["Vault"]);
+		wethAddress = vault.functions.WETH().call();
+		return(wethAddress);
 
 	def balSwapIsFlashSwap(self, swapDescription):
 		for amount in swapDescription["limits"]:
