@@ -52,9 +52,12 @@ class balpy(object):
 	};
 
 	# Network parameters
-	networkParams = {	"mainnet":	{"id":1,	"etherscanURL":"etherscan.io"},
-						"kovan":	{"id":42,	"etherscanURL":"kovan.etherscan.io"},
-						"polygon":	{"id":137,	"etherscanURL":"polygonscan.com"}};
+	networkParams = {
+						"mainnet":	{"id":1,		"blockExplorerUrl":"etherscan.io"},
+						"kovan":	{"id":42,		"blockExplorerUrl":"kovan.etherscan.io"},
+						"polygon":	{"id":137,		"blockExplorerUrl":"polygonscan.com"},
+						"arbitrum":	{"id":42161,	"blockExplorerUrl":"explorer.arbitrum.io"}
+					};
 
 	# ABIs, Artifacts
 	abis = {};
@@ -71,6 +74,19 @@ class balpy(object):
 	
 	decimals = {};
 	erc20Contracts = {};
+
+	UserBalanceOpKind = {
+		"DEPOSIT_INTERNAL":0,
+		"WITHDRAW_INTERNAL":1,
+		"TRANSFER_INTERNAL":2,
+		"TRANSFER_EXTERNAL":3
+	};
+	inverseUserBalanceOpKind = {
+		0:"DEPOSIT_INTERNAL",
+		1:"WITHDRAW_INTERNAL",
+		2:"TRANSFER_INTERNAL",
+		3:"TRANSFER_EXTERNAL"
+	};
 
 	def __init__(self, network=None, verbose=True):
 		super(balpy, self).__init__();
@@ -95,7 +111,8 @@ class balpy(object):
 		self.privateKey =  			os.environ.get(self.envVarPrivate);
 
 		if self.infuraApiKey is None and self.customRPC is None:
-			self.ERROR("You need to add your infuraApiKey or customRPC environment variables");
+			self.ERROR("You need to add your KEY_API_INFURA or BALPY_CUSTOM_RPC environment variables\n");
+			self.ERROR("!! If you are using L2, you must use BALPY_CUSTOM_RPC !!");
 			print("\t\texport " + self.envVarInfura + "=<yourInfuraApiKey>");
 			print("\t\t\tOR")
 			print("\t\texport " + self.envVarCustomRPC + "=<yourCustomRPC>");
@@ -168,9 +185,9 @@ class balpy(object):
 				pass;
 			gasPriceGwei = self.getGasPriceEtherscanGwei(gasSpeed);
 		
-		print("Gas Estimate:\t", gasEstimate);
-		print("Gas Price:\t", gasPriceGwei, "Gwei");
-		print("Nonce:\t\t", nonce);
+		print("\tGas Estimate:\t", gasEstimate);
+		print("\tGas Price:\t", gasPriceGwei, "Gwei");
+		print("\tNonce:\t\t", nonce);
 
 		# build transaction
 		data = fn.buildTransaction({'chainId': chainIdNetwork,
@@ -184,16 +201,22 @@ class balpy(object):
 		signedTx = self.web3.eth.account.sign_transaction(tx, self.privateKey);
 		txHash = self.web3.eth.send_raw_transaction(signedTx.rawTransaction).hex();
 
+		print();
 		print("Sending transaction, view progress at:");
-		print("\thttps://"+self.networkParams[self.network]["etherscanURL"]+"/tx/"+txHash);
+		print("\thttps://"+self.networkParams[self.network]["blockExplorerUrl"]+"/tx/"+txHash);
 		
 		if not isAsync:
 			self.waitForTx(txHash);
 		return(txHash);
 
 	def waitForTx(self, txHash, timeOutSec=120):
+		print();
 		print("Waiting for tx:", txHash);
 		self.web3.eth.wait_for_transaction_receipt(txHash);
+
+		# Race condition: add a small delay to avoid getting the last nonce
+		time.sleep(1);
+
 		print("\tTransaction accepted by network!\n");
 		return(True);
 
@@ -235,10 +258,12 @@ class balpy(object):
 		self.decimals[tokenAddress] = decimals;
 		return(decimals);
 
-	def erc20GetBalanceStandard(self, tokenAddress):
+	def erc20GetBalanceStandard(self, tokenAddress, address=None):
+		if address is None:
+			address = self.address;
 		token = self.erc20GetContract(tokenAddress);
 		decimals = self.erc20GetDecimals(tokenAddress);
-		standardBalance = token.functions.balanceOf(self.address).call() * 10**(-decimals);
+		standardBalance = token.functions.balanceOf(address).call() * 10**(-decimals);
 		return(standardBalance);
 
 	def erc20GetAllowanceStandard(self, tokenAddress, allowedAddress):
@@ -570,6 +595,49 @@ class balpy(object):
 		vault = self.web3.eth.contract(address=self.VAULT, abi=self.abis["Vault"]);
 		wethAddress = vault.functions.WETH().call();
 		return(wethAddress);
+
+	def balVaultGetInternalBalance(self, tokens, address=None):
+		if address is None:
+			address = self.web3.eth.default_account;
+
+		vault = self.web3.eth.contract(address=self.VAULT, abi=self.abis["Vault"]);
+		(sortedTokens, checksumTokens) = self.balSortTokens(tokens);
+		balances = vault.functions.getInternalBalance(address, sortedTokens).call();
+		numElements = len(sortedTokens);
+		internalBalances = {};
+		for i in range(numElements):
+			token = sortedTokens[i];
+			decimals = self.erc20GetDecimals(token);
+			internalBalances[token] = balances[i] * 10**(-decimals);
+		return(internalBalances);
+
+	def balVaultDoManageUserBalance(self, kind, token, amount, sender, recipient, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		if self.verbose:
+			print("Managing User Balance");
+			print("\tKind:\t\t", self.inverseUserBalanceOpKind[kind]);
+			print("\tToken:\t\t", str(token));
+			print("\tAmount:\t\t", str(amount));
+			print("\tSender:\t\t", str(sender));
+			print("\tRecipient:\t", str(recipient));
+		manageUserBalanceFn = self.balVaultBuildManageUserBalanceFn(kind, token, amount, sender, recipient);
+
+		print();
+		print("Building ManageUserBalance");
+		tx = self.buildTx(manageUserBalanceFn, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
+		txHash = self.sendTx(tx, isAsync);
+		return(txHash);
+
+	def balVaultBuildManageUserBalanceFn(self, kind, token, amount, sender, recipient):
+		kind = kind;
+		asset = self.web3.toChecksumAddress(token);
+		amount = self.balConvertTokensToWei([token],[amount])[0];
+		sender = self.web3.toChecksumAddress(sender);
+		recipient = self.web3.toChecksumAddress(recipient);
+		inputTupleList = [(kind, asset, amount, sender, recipient)];
+
+		vault = self.web3.eth.contract(address=self.VAULT, abi=self.abis["Vault"]);
+		manageUserBalanceFn = vault.functions.manageUserBalance(inputTupleList);
+		return(manageUserBalanceFn);
 
 	def balSwapIsFlashSwap(self, swapDescription):
 		for amount in swapDescription["limits"]:
