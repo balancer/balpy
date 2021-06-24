@@ -31,3 +31,9 @@ You must set three environment variables in order to use the balpy module
 - Directory for miscellaneous useful scripts
 - Edit revokeAllowances script to revoke allowances for the given network, token, and allowed address
 - python3 revokeAllowances.py
+- python3 vaultReadWeth.py
+
+### Internal Balances
+- Go to the internalBalances/ directory
+- Examine and/or edit sampleInternalBalances.py
+- python sampleInternalBalances.py
