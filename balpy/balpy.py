@@ -7,16 +7,11 @@ import requests
 import time
 import sys
 import pkgutil
+from decimal import *
 
 # web3 
 from web3 import Web3
 import eth_abi
-
-# globals
-global web3
-global lastEtherscanCallTime
-global etherscanMaxRate
-global etherscanApiKey
 
 class balpy(object):
 	
@@ -104,6 +99,9 @@ class balpy(object):
 			network = "kovan";
 		else:
 			print("Network is set to", network);
+
+		# set high decimal precision
+		getcontext().prec = 28;
 
 		self.infuraApiKey = 		os.environ.get(self.envVarInfura);
 		self.customRPC = 			os.environ.get(self.envVarCustomRPC);
@@ -263,13 +261,13 @@ class balpy(object):
 			address = self.address;
 		token = self.erc20GetContract(tokenAddress);
 		decimals = self.erc20GetDecimals(tokenAddress);
-		standardBalance = token.functions.balanceOf(address).call() * 10**(-decimals);
+		standardBalance = Decimal(token.functions.balanceOf(address).call()) * Decimal(10**(-decimals));
 		return(standardBalance);
 
 	def erc20GetAllowanceStandard(self, tokenAddress, allowedAddress):
 		token = self.erc20GetContract(tokenAddress);
 		decimals = self.erc20GetDecimals(tokenAddress);
-		standardAllowance = token.functions.allowance(self.address,allowedAddress).call() * 10**(-decimals);
+		standardAllowance = Decimal(token.functions.allowance(self.address,allowedAddress).call()) * Decimal(10**(-decimals));
 		return(standardAllowance);
 
 	def erc20BuildFunctionSetAllowance(self, tokenAddress, allowedAddress, allowance):
@@ -355,9 +353,9 @@ class balpy(object):
 				targetAllowance = self.INFINITE;
 			else:
 				decimals = self.erc20GetDecimals(tokenAddress);
-				targetAllowance = targetAllowance * 10**decimals;
+				targetAllowance = Decimal(targetAllowance) * Decimal(10**decimals);
 			targetAllowance = int(targetAllowance);
-			print("Insufficient Allowance. Increasing allowance to", targetAllowance);
+			print("Insufficient Allowance: Increasing to", targetAllowance);
 			txHash = self.erc20SignAndSendNewAllowance(tokenAddress, allowedAddress, targetAllowance, gasFactor, gasSpeed, nonceOverride=nonceOverride, isAsync=isAsync);
 			return(txHash);
 		return(None);
@@ -424,13 +422,14 @@ class balpy(object):
 		tokenData = poolData["tokens"];
 		tokens = tokenData.keys();
 		
-		weightSum = 0.0;
+		weightSum = Decimal(0.0);
 		for token in tokens:
-			weightSum += tokenData[token]["weight"];
+			weightSum += Decimal(tokenData[token]["weight"]);
 		
-		weightEqualsOne = (weightSum == 1.0)
+		weightEqualsOne = (weightSum == Decimal(1.0));
 		if not weightEqualsOne:
 			self.ERROR("Token weights add up to " + str(weightSum) + ", but they must add up to 1.0");
+			self.ERROR("If you are passing more than 16 digits of precision, you must pass the value as a string")
 		return(weightEqualsOne);
 
 	def balConvertTokensToWei(self, tokens, amounts):
@@ -443,7 +442,7 @@ class balpy(object):
 			token = tokens[i];
 			rawValue = amounts[i];
 			decimals = self.erc20GetDecimals(token);
-			raw = int(rawValue * 10**decimals);
+			raw = int(Decimal(rawValue) * Decimal(10**decimals));
 			rawTokens.append(raw);
 		return(rawTokens);
 
@@ -466,8 +465,8 @@ class balpy(object):
 	def balCreateFnWeightedPoolFactory(self, poolData):
 		factory = self.balGetFactoryContract("WeightedPoolFactory");
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
-		intWithDecimalsWeights = [int(poolData["tokens"][t]["weight"] * 1e18) for t in tokens];
-		swapFeePercentage = int(poolData["swapFeePercent"] * 1e16);
+		intWithDecimalsWeights = [int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18)) for t in tokens];
+		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
 
 		if not self.balWeightsEqualOne(poolData):
 			return(False);
@@ -493,8 +492,8 @@ class balpy(object):
 		if not self.balWeightsEqualOne(poolData):
 			return(False);
 
-		intWithDecimalsWeights = [int(poolData["tokens"][t]["weight"] * 1e18) for t in tokens];
-		swapFeePercentage = int(poolData["swapFeePercent"] * 1e16);
+		intWithDecimalsWeights = [int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18)) for t in tokens];
+		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
 
 		owner = self.balSetOwner(poolData);
 
@@ -608,7 +607,7 @@ class balpy(object):
 		for i in range(numElements):
 			token = sortedTokens[i];
 			decimals = self.erc20GetDecimals(token);
-			internalBalances[token] = balances[i] * 10**(-decimals);
+			internalBalances[token] = Decimal(balances[i]) * Decimal(10**(-decimals));
 		return(internalBalances);
 
 	def balVaultDoManageUserBalance(self, kind, token, amount, sender, recipient, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
@@ -681,7 +680,7 @@ class balpy(object):
 		for i in range(numTokens):
 			currLimitStandard = float(swapDescription["limits"][sortedIdxToOriginalIdx[i]]);
 			decimals = self.erc20GetDecimals(sortedTokens[i]);
-			currLimitRaw = int(currLimitStandard * 10**(decimals))
+			currLimitRaw = int(Decimal(currLimitStandard) * Decimal(10**(decimals)))
 			reorderedLimits.append(currLimitRaw)
 
 		kind = int(swapDescription["kind"]);
@@ -692,7 +691,7 @@ class balpy(object):
 			idxSortedIn = originalIdxToSortedIdx[int(swap["assetInIndex"])];
 			idxSortedOut = originalIdxToSortedIdx[int(swap["assetOutIndex"])];
 			decimals = self.erc20GetDecimals(sortedTokens[idxSortedIn]);
-			amount = int( float(swap["amount"]) * 10**(decimals) );
+			amount = int( Decimal(swap["amount"]) * Decimal(10**(decimals)) );
 
 			swapsTuple = (	swap["poolId"],
 							idxSortedIn,
