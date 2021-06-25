@@ -414,9 +414,20 @@ class balpy(object):
 		return(response.json()["result"][self.etherscanSpeedDict[speed]]);
 
 	def balSortTokens(self, tokensIn):
-		tokensIn.sort();
+		# tokens need to be sorted as lowercase, but if they're provided as checksum, then
+		# the checksum format strings are still the keys outside of this function, so they
+		# must be preserved as they're input
+		lowerTokens = [t.lower() for t in tokensIn];
+		lowerToOriginal = {};
+		for i in range(len(tokensIn)):
+			lowerToOriginal[lowerTokens[i]] = tokensIn[i];
+		lowerTokens.sort();
+
+		# get checksum tokens, translated sorted lower tokens back to their original format
 		checksumTokens = [self.web3.toChecksumAddress(t) for t in tokensIn];
-		return(tokensIn, checksumTokens);
+		sortedInputTokens = [lowerToOriginal[f] for f in lowerTokens]
+
+		return(sortedInputTokens, checksumTokens);
 
 	def balWeightsEqualOne(self, poolData):
 		tokenData = poolData["tokens"];
