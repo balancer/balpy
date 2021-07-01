@@ -101,7 +101,7 @@ class balpy(object):
 			print("Network is set to", network);
 
 		# set high decimal precision
-		getcontext().prec = 28;
+		getcontext().prec = 18;
 
 		self.infuraApiKey = 		os.environ.get(self.envVarInfura);
 		self.customRPC = 			os.environ.get(self.envVarCustomRPC);
@@ -156,6 +156,10 @@ class balpy(object):
 		ERROR_END = '\033[0m';
 		print(ERROR_BEGIN + "[ERROR] " + text + ERROR_END);
 
+	def GOOD(self, text):
+		GOOD_BEGIN = '\033[92m'
+		GOOD_END = '\033[0m';
+		print(GOOD_BEGIN + text + GOOD_END);
 	# =====================
 	# ===Transaction Fns===
 	# =====================
@@ -210,7 +214,11 @@ class balpy(object):
 	def waitForTx(self, txHash, timeOutSec=120):
 		print();
 		print("Waiting for tx:", txHash);
-		self.web3.eth.wait_for_transaction_receipt(txHash);
+		try:
+			self.web3.eth.wait_for_transaction_receipt(txHash, timeout=timeOutSec);
+		except BaseException as error:
+			print('Transaction timeout: {}'.format(error))
+			return(False);
 
 		# Race condition: add a small delay to avoid getting the last nonce
 		time.sleep(1);
@@ -244,13 +252,16 @@ class balpy(object):
 		abiPath = os.path.join('abi/ERC20.json');
 		f = pkgutil.get_data(__name__, abiPath).decode();
 		abi = json.loads(f);
-		token = self.web3.eth.contract(tokenAddress, abi=abi)
+		token = self.web3.eth.contract(self.web3.toChecksumAddress(tokenAddress), abi=abi)
 		self.erc20Contracts[tokenAddress] = token;
 		return(token);
 
 	def erc20GetDecimals(self, tokenAddress):
 		if tokenAddress in self.decimals.keys():
 			return(self.decimals[tokenAddress]);
+		if tokenAddress == self.ZERO_ADDRESS:
+			self.decimals[tokenAddress] = 18;
+			return(18);
 		token = self.erc20GetContract(tokenAddress);
 		decimals = token.functions.decimals().call();
 		self.decimals[tokenAddress] = decimals;
@@ -424,7 +435,7 @@ class balpy(object):
 		lowerTokens.sort();
 
 		# get checksum tokens, translated sorted lower tokens back to their original format
-		checksumTokens = [self.web3.toChecksumAddress(t) for t in tokensIn];
+		checksumTokens = [self.web3.toChecksumAddress(t) for t in lowerTokens];
 		sortedInputTokens = [lowerToOriginal[f] for f in lowerTokens]
 
 		return(sortedInputTokens, checksumTokens);
@@ -476,6 +487,7 @@ class balpy(object):
 	def balCreateFnWeightedPoolFactory(self, poolData):
 		factory = self.balGetFactoryContract("WeightedPoolFactory");
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
+
 		intWithDecimalsWeights = [int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18)) for t in tokens];
 		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
 
@@ -612,11 +624,11 @@ class balpy(object):
 
 		vault = self.web3.eth.contract(address=self.VAULT, abi=self.abis["Vault"]);
 		(sortedTokens, checksumTokens) = self.balSortTokens(tokens);
-		balances = vault.functions.getInternalBalance(address, sortedTokens).call();
+		balances = vault.functions.getInternalBalance(address, checksumTokens).call();
 		numElements = len(sortedTokens);
 		internalBalances = {};
 		for i in range(numElements):
-			token = sortedTokens[i];
+			token = checksumTokens[i];
 			decimals = self.erc20GetDecimals(token);
 			internalBalances[token] = Decimal(balances[i]) * Decimal(10**(-decimals));
 		return(internalBalances);
