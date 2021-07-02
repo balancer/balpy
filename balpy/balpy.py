@@ -82,6 +82,11 @@ class balpy(object):
 		2:"TRANSFER_INTERNAL",
 		3:"TRANSFER_EXTERNAL"
 	};
+	JoinKind = {
+		"INIT": 0,
+		"EXACT_TOKENS_IN_FOR_BPT_OUT": 1,
+		"TOKEN_IN_FOR_EXACT_BPT_OUT": 2
+	}
 
 	def __init__(self, network=None, verbose=True):
 		super(balpy, self).__init__();
@@ -592,16 +597,33 @@ class balpy(object):
 		print("\t0x" + str(poolId));
 		return(poolId);
 
+	def balJoinPoolExactIn(self, joinDescription, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		(sortedTokens, checksumTokens) = self.balSortTokens(list(joinDescription["tokens"].keys()));
+		amountsBySortedTokens = [joinDescription["tokens"][token]["amount"] for token in sortedTokens];
+		rawAmounts = self.balConvertTokensToWei(sortedTokens, amountsBySortedTokens);
+
+		userDataEncoded = eth_abi.encode_abi(	['uint256', 'uint256[]'],
+												[self.JoinKind["EXACT_TOKENS_IN_FOR_BPT_OUT"], rawAmounts]);
+		joinPoolRequestTuple = (checksumTokens, rawAmounts, userDataEncoded.hex(), joinDescription["fromInternalBalance"]);
+		vault = self.web3.eth.contract(address=self.VAULT, abi=self.abis["Vault"]);
+		joinPoolFunction = vault.functions.joinPool(joinDescription["poolId"],
+												self.web3.toChecksumAddress(self.web3.eth.default_account),
+												self.web3.toChecksumAddress(self.web3.eth.default_account),
+												joinPoolRequestTuple);
+		tx = self.buildTx(joinPoolFunction, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
+		print("Transaction Generated!");
+		txHash = self.sendTx(tx);
+		return(txHash);
+
 	def balRegisterPoolWithVault(self, poolDescription, poolId, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 
 		(sortedTokens, checksumTokens) = self.balSortTokens(list(poolDescription["tokens"].keys()));
 		initialBalancesBySortedTokens = [poolDescription["tokens"][token]["initialBalance"] for token in sortedTokens];
 
 		rawInitBalances = self.balConvertTokensToWei(sortedTokens, initialBalancesBySortedTokens);
-		JOIN_KIND_INIT = 0;
 		initUserDataEncoded = eth_abi.encode_abi(	['uint256', 'uint256[]'], 
-													[JOIN_KIND_INIT, rawInitBalances]);
-		(tokens, checksumTokens) = self.balSortTokens(list(poolDescription["tokens"].keys()));
+													[self.JoinKind["INIT"], rawInitBalances]);
+		# (tokens, checksumTokens) = self.balSortTokens(list(poolDescription["tokens"].keys()));
 		joinPoolRequestTuple = (checksumTokens, rawInitBalances, initUserDataEncoded.hex(), poolDescription["fromInternalBalance"]);
 		vault = self.web3.eth.contract(address=self.VAULT, abi=self.abis["Vault"]);
 		joinPoolFunction = vault.functions.joinPool(poolId, 
