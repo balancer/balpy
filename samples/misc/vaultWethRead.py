@@ -1,7 +1,7 @@
 import balpy
 
 def main():
-	network = "polygon"
+	network = "kovan"
 
 	bal = balpy.balpy.balpy(network);
 	weth = bal.balVaultWeth();
