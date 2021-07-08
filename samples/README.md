@@ -26,14 +26,23 @@ You must set three environment variables in order to use the balpy module
 - Edit your desired swap type json
 - python3 batchSwapSample.py sample{Single, Multihop, Flash}Swap.json
 
+### Joins
+- Go to joinPool/ directory
+- Edit sampleJoin.json
+- python3 joinPoolSample.py sampleJoin.json
+
+### Internal Balances
+- Go to the internalBalances/ directory
+- Examine and/or edit sampleInternalBalances.py
+- python sampleInternalBalances.py
+
+### Querying TheGraph
+- Go to theGraph/ directory
+- python getPools.py (optional: netw0ork)
+
 ### Misc 
 - Go to misc/ directory
 - Directory for miscellaneous useful scripts
 - Edit revokeAllowances script to revoke allowances for the given network, token, and allowed address
 - python3 revokeAllowances.py
 - python3 vaultReadWeth.py
-
-### Internal Balances
-- Go to the internalBalances/ directory
-- Examine and/or edit sampleInternalBalances.py
-- python sampleInternalBalances.py
