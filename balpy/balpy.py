@@ -13,6 +13,8 @@ from decimal import *
 from web3 import Web3
 import eth_abi
 
+from balpy import balancerErrors as be
+
 class balpy(object):
 	
 	"""
@@ -181,16 +183,29 @@ class balpy(object):
 		if gasEstimateOverride > -1:
 			gasEstimate = gasEstimateOverride;
 		else:
-			gasEstimate = int(fn.estimateGas() * gasFactor);
+			try:
+				gasEstimate = int(fn.estimateGas() * gasFactor);
+			except BaseException as error:
+				descriptiveError = be.handleException(error);
+				self.ERROR("Transaction failed at gas estimation!");
+				self.ERROR(descriptiveError);
+				return(None);
 
 		# Get gas price from Etherscan if not overridden
 		if gasPriceGweiOverride > -1:
 			gasPriceGwei = gasPriceGweiOverride;
 		else:
-			if not chainIdNetwork == 1: #if not mainnet
+			#kovan gas strategy
+			if chainIdNetwork == 42:
 				gasPriceGwei = 5;
-				pass;
-			gasPriceGwei = self.getGasPriceEtherscanGwei(gasSpeed);
+
+			# polygon gas strategy
+			elif chainIdNetwork == 137:
+				gasPriceGwei = self.getGasPricePolygon(gasSpeed);
+
+			#mainnet gas strategy
+			else:
+				gasPriceGwei = self.getGasPriceEtherscanGwei(gasSpeed);
 		
 		print("\tGas Estimate:\t", gasEstimate);
 		print("\tGas Price:\t", gasPriceGwei, "Gwei");
@@ -217,18 +232,26 @@ class balpy(object):
 		return(txHash);
 
 	def waitForTx(self, txHash, timeOutSec=120):
+		txSuccessful = True;
 		print();
 		print("Waiting for tx:", txHash);
 		try:
-			self.web3.eth.wait_for_transaction_receipt(txHash, timeout=timeOutSec);
+			receipt = self.web3.eth.wait_for_transaction_receipt(txHash, timeout=timeOutSec);
+			if not receipt["status"] == 1:
+				txSuccessful = False;
 		except BaseException as error:
 			print('Transaction timeout: {}'.format(error))
 			return(False);
 
 		# Race condition: add a small delay to avoid getting the last nonce
-		time.sleep(1);
+		time.sleep(0.5);
 
-		print("\tTransaction accepted by network!\n");
+		print("\tTransaction accepted by network!");
+		if not txSuccessful:
+			self.ERROR("Transaction failed!")
+			return(False)
+		print("\tTransaction was successful!\n");
+
 		return(True);
 
 	def getTxReceipt(self, txHash, delay, maxRetries):
@@ -421,13 +444,26 @@ class balpy(object):
 			time.sleep((1.0/self.etherscanMaxRate - dt) * 1.1);
 
 		if not speed in self.etherscanSpeedDict.keys():
-			print("[ERROR] Speed entered is:", speed);
+			self.ERROR("Speed entered is:", speed);
 			print("\tSpeed must be 'slow', 'average', or 'fast'");
 			return(False);
 
 		response = requests.get("https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=" + self.etherscanApiKey);
 		self.lastEtherscanCallTime = time.time();
 		return(response.json()["result"][self.etherscanSpeedDict[speed]]);
+
+	def getGasPricePolygon(self, speed):
+		allowedSpeeds = ["safeLow","standard","fast","fastest"];
+		if speed not in allowedSpeeds:
+			self.ERROR("Speed entered is:", speed);
+			self.ERROR("Speed must be one of the following options:");
+			for s in allowedSpeeds:
+				print("\t" + s);
+			return(False);
+
+		r = requests.get("https://gasstation-mainnet.matic.network/")
+		prices = r.json();
+		return(prices[speed]);
 
 	def balSortTokens(self, tokensIn):
 		# tokens need to be sorted as lowercase, but if they're provided as checksum, then
