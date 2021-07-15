@@ -89,6 +89,11 @@ class balpy(object):
 		"EXACT_TOKENS_IN_FOR_BPT_OUT": 1,
 		"TOKEN_IN_FOR_EXACT_BPT_OUT": 2
 	}
+	ExitKind = {
+		"EXACT_BPT_IN_FOR_ONE_TOKEN_OUT": 0,
+		"EXACT_BPT_IN_FOR_TOKENS_OUT": 1,
+		"BPT_IN_FOR_EXACT_TOKENS_OUT": 2
+	}
 
 	def __init__(self, network=None, verbose=True):
 		super(balpy, self).__init__();
@@ -444,7 +449,7 @@ class balpy(object):
 			time.sleep((1.0/self.etherscanMaxRate - dt) * 1.1);
 
 		if not speed in self.etherscanSpeedDict.keys():
-			self.ERROR("Speed entered is:", speed);
+			self.ERROR("Speed entered is:" + speed);
 			print("\tSpeed must be 'slow', 'average', or 'fast'");
 			return(False);
 
@@ -455,7 +460,7 @@ class balpy(object):
 	def getGasPricePolygon(self, speed):
 		allowedSpeeds = ["safeLow","standard","fast","fastest"];
 		if speed not in allowedSpeeds:
-			self.ERROR("Speed entered is:", speed);
+			self.ERROR("Speed entered is:" + speed);
 			self.ERROR("Speed must be one of the following options:");
 			for s in allowedSpeeds:
 				print("\t" + s);
@@ -659,7 +664,8 @@ class balpy(object):
 		rawInitBalances = self.balConvertTokensToWei(sortedTokens, initialBalancesBySortedTokens);
 		initUserDataEncoded = eth_abi.encode_abi(	['uint256', 'uint256[]'], 
 													[self.JoinKind["INIT"], rawInitBalances]);
-		# (tokens, checksumTokens) = self.balSortTokens(list(poolDescription["tokens"].keys()));
+
+		#todo replace this code with a join call
 		joinPoolRequestTuple = (checksumTokens, rawInitBalances, initUserDataEncoded.hex(), poolDescription["fromInternalBalance"]);
 		vault = self.web3.eth.contract(address=self.VAULT, abi=self.abis["Vault"]);
 		joinPoolFunction = vault.functions.joinPool(poolId, 
