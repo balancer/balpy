@@ -51,6 +51,7 @@ class balpy(object):
 	# Network parameters
 	networkParams = {
 						"mainnet":	{"id":1,		"blockExplorerUrl":"etherscan.io"},
+						"rinkeby":	{"id":4,		"blockExplorerUrl":"rinkeby.etherscan.io"},
 						"kovan":	{"id":42,		"blockExplorerUrl":"kovan.etherscan.io"},
 						"polygon":	{"id":137,		"blockExplorerUrl":"polygonscan.com"},
 						"arbitrum":	{"id":42161,	"blockExplorerUrl":"explorer.arbitrum.io"}
@@ -200,8 +201,8 @@ class balpy(object):
 		if gasPriceGweiOverride > -1:
 			gasPriceGwei = gasPriceGweiOverride;
 		else:
-			#kovan gas strategy
-			if chainIdNetwork == 42:
+			#rinkeby, kovan gas strategy
+			if chainIdNetwork in [4, 42]:
 				gasPriceGwei = 5;
 
 			# polygon gas strategy
