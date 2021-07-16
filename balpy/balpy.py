@@ -153,8 +153,16 @@ class balpy(object):
 		# Read files packaged in module
 		for name in self.artifacts:
 			artifactPath = os.path.join('artifacts/', self.network, name + '.json');
-			f = pkgutil.get_data(__name__, artifactPath).decode();
-			self.abis[name] = json.loads(f)["abi"];
+
+			currAbi = None;
+			try:
+				f = pkgutil.get_data(__name__, artifactPath).decode();
+				currAbi = json.loads(f)["abi"];
+			except BaseException as error:
+				self.ERROR('Error accessing file: {}'.format(artifactPath))
+				self.ERROR('{}'.format(error))
+
+			self.abis[name] = currAbi;
 
 	# ======================
 	# ====Color Printing====
