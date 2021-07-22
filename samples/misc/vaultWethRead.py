@@ -5,7 +5,7 @@ def main():
 
 	bal = balpy.balpy.balpy(network);
 	weth = bal.balVaultWeth();
-	print(weth);
+	print("Wrapped ETH Address:", weth);
 		
 if __name__ == '__main__':
 	main();
