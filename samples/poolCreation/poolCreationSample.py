@@ -55,6 +55,8 @@ def main():
 
 	if not "poolId" in pool.keys():
 		txHash = bal.balCreatePoolInFactory(pool, gasFactor, gasSpeed, gasPriceGweiOverride=gasPriceGweiOverride);
+		if not txHash:
+			quit();
 		poolId = bal.balGetPoolIdFromHash(txHash);
 		pool["poolId"] = poolId;
 		with open(pathToPool, 'w') as f:
