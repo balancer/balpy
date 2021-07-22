@@ -79,7 +79,7 @@ def main():
 
 	amount = 2.5;
 	print("Transferring", amount, "of token", token, "from", bal.address, "to", deadAddress,"INTERNALLY\n");
-	bal.balVaultDoManageUserBalance( bal.UserBalanceOpKind["TRANSFER_INTERNAL"], token, amount, bal.address, deadAddress, gasEstimateOverride=200000);
+	bal.balVaultDoManageUserBalance( bal.UserBalanceOpKind["TRANSFER_INTERNAL"], token, amount, bal.address, deadAddress);
 	
 	print("\n==================== Ending Balances ====================\n");
 	printBalances(bal, tokens, bal.address);
@@ -98,7 +98,7 @@ def main():
 
 	amount = 1.25;
 	print("Transferring", amount, "of token", token, "from", bal.address, "to", deadAddress,"EXTERNALLY\n");
-	bal.balVaultDoManageUserBalance( bal.UserBalanceOpKind["TRANSFER_EXTERNAL"], token, amount, bal.address, deadAddress, gasEstimateOverride=200000);
+	bal.balVaultDoManageUserBalance( bal.UserBalanceOpKind["TRANSFER_EXTERNAL"], token, amount, bal.address, deadAddress);
 	
 	print("\n==================== Ending Balances ====================\n");
 	printBalances(bal, tokens, bal.address);
