@@ -638,7 +638,7 @@ class balpy(object):
 	def balCreateFnLBPoolFactory(self, poolData):
 		factory = self.balGetFactoryContract("LiquidityBootstrappingPoolFactory");
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
-		
+
 		if not self.balWeightsEqualOne(poolData):
 			return(False);
 
@@ -647,16 +647,16 @@ class balpy(object):
 		owner = self.balSetOwner(poolData);
 
 		if not owner == self.address:
-			self.ERROR("You are not the owner for your LBP!")
-			self.ERROR("You:\t" + self.address)
-			self.ERROR("Pool Owner:\t" + owner)
+			self.WARN("!!! You are not the owner for your LBP !!!")
+			self.WARN("You:\t\t" + self.address)
+			self.WARN("Pool Owner:\t" + owner)
+
 			print();
-			self.ERROR("You must set your owner to be your own address for an LBP.")
-			return(False)
-			# print();
-			# cancelTimeSec = 10;
-			# self.WARN("If this is was unintentional, you have " + str(cancelTimeSec) + " seconds to cancel with Ctrl+C.")
-			# time.sleep(cancelTimeSec);
+			self.WARN("Only the pool owner can add liquidity. If you do not control " + owner + " then you will not be able to add liquidity!")
+			self.WARN("If you DO control " + owner + ", you will need to use the \"INIT\" join type from that address")
+			cancelTimeSec = 30;
+			self.WARN("If the owner mismatch is was unintentional, you have " + str(cancelTimeSec) + " seconds to cancel with Ctrl+C.")
+			time.sleep(cancelTimeSec);
 
 		createFunction = factory.functions.create(	poolData["name"],
 													poolData["symbol"],
