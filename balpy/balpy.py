@@ -45,13 +45,13 @@ class balpy(object):
 
 	# Network parameters
 	networkParams = {
-						"mainnet":	{"id":1,		"blockExplorerUrl":"etherscan.io"},
-						"ropsten":	{"id":3,		"blockExplorerUrl":"ropsten.etherscan.io"},
-						"rinkeby":	{"id":4,		"blockExplorerUrl":"rinkeby.etherscan.io"},
-						"goerli":	{"id":5,		"blockExplorerUrl":"goerli.etherscan.io"},
-						"kovan":	{"id":42,		"blockExplorerUrl":"kovan.etherscan.io"},
-						"polygon":	{"id":137,		"blockExplorerUrl":"polygonscan.com"},
-						"arbitrum":	{"id":42161,	"blockExplorerUrl":"explorer.arbitrum.io"}
+						"mainnet":	{"id":1,		"blockExplorerUrl":"etherscan.io",					"balFrontend":"app.balancer.fi/#/"		},
+						"ropsten":	{"id":3,		"blockExplorerUrl":"ropsten.etherscan.io"													},
+						"rinkeby":	{"id":4,		"blockExplorerUrl":"rinkeby.etherscan.io"													},
+						"goerli":	{"id":5,		"blockExplorerUrl":"goerli.etherscan.io"													},
+						"kovan":	{"id":42,		"blockExplorerUrl":"kovan.etherscan.io",			"balFrontend":"kovan.app.balancer.fi/#/"},
+						"polygon":	{"id":137,		"blockExplorerUrl":"polygonscan.com",				"balFrontend":"polygon.balancer.fi/#/"	},
+						"arbitrum":	{"id":42161,	"blockExplorerUrl":"explorer.arbitrum.io",													}
 					};
 
 	# ABIs and Deployment Addresses
@@ -126,6 +126,7 @@ class balpy(object):
 			network = "kovan";
 		else:
 			print("Network is set to", network);
+		self.network = network;
 
 		# set high decimal precision
 		getcontext().prec = 28;
@@ -150,7 +151,6 @@ class balpy(object):
 			print("\t\texport " + self.envVarPrivate + "=<yourPrivateKey>");
 			quit();
 
-		self.network = network;
 		endpoint = self.customRPC;
 		if endpoint is None:
 			endpoint = 'https://' + self.network + '.infura.io/v3/' + self.infuraApiKey;
@@ -214,6 +214,7 @@ class balpy(object):
 		GOOD_BEGIN = '\033[92m'
 		GOOD_END = '\033[0m';
 		print(GOOD_BEGIN + text + GOOD_END);
+
 	# =====================
 	# ===Transaction Fns===
 	# =====================
@@ -244,7 +245,7 @@ class balpy(object):
 		else:
 			#rinkeby, kovan gas strategy
 			if chainIdNetwork in [4, 42]:
-				gasPriceGwei = 5;
+				gasPriceGwei = 2;
 
 			# polygon gas strategy
 			elif chainIdNetwork == 137:
@@ -672,6 +673,26 @@ class balpy(object):
 													poolData["swapEnabledOnStart"]);
 		return(createFunction);
 
+	def balCreateFnMetaStablePoolFactory(self, poolData):
+		factory = self.balGetFactoryContract("MetaStablePoolFactory");
+		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
+		swapFeePercentage = int(poolData["swapFeePercent"] * 1e16);
+		owner = self.balSetOwner(poolData);
+
+		rateProviders = [poolData["tokens"][token]["rateProvider"] for token in tokens]
+		priceRateCacheDurations = [poolData["tokens"][token]["priceRateCacheDuration"] for token in tokens]
+
+		createFunction = factory.functions.create(	poolData["name"],
+													poolData["symbol"],
+													checksumTokens,
+													poolData["amplificationParameter"],
+													rateProviders,
+													priceRateCacheDurations,
+													swapFeePercentage,
+													poolData["oracleEnabled"],
+													owner);
+		return(createFunction);
+
 	def balCreatePoolInFactory(self, poolDescription, gasFactor, gasPriceSpeed, nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 		createFunction = None;
 		poolFactoryName = poolDescription["poolType"] + "Factory";
@@ -687,6 +708,8 @@ class balpy(object):
 			createFunction = self.balCreateFnStablePoolFactory(poolDescription);
 		if poolFactoryName == "LiquidityBootstrappingPoolFactory":
 			createFunction = self.balCreateFnLBPoolFactory(poolDescription);
+		if poolFactoryName == "MetaStablePoolFactory":
+			createFunction = self.balCreateFnMetaStablePoolFactory(poolDescription);
 		if createFunction is None:
 			print("No pool factory found with name:", poolFactoryName);
 			print("Currently supported pool types are:");
@@ -694,6 +717,7 @@ class balpy(object):
 			print("\tWeightedPool2Token");
 			print("\tStablePool");
 			print("\tLiquidityBootstrappingPool");
+			print("\tMetaStablePool");
 			return(False);
 
 		if not createFunction:
@@ -880,3 +904,11 @@ class balpy(object):
 														intReorderedLimits,
 														deadline);
 		return(batchSwapFunction);
+
+	def balGetLinkToFrontend(self, poolId):
+		if "balFrontend" in self.networkParams[self.network].keys():
+			return("https://" + self.networkParams[self.network]["balFrontend"] + "pool/0x" + poolId);
+		else:
+			return("")
+
+
