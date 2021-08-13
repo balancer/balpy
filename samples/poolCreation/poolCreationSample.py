@@ -3,6 +3,8 @@ import sys
 import os
 import json
 
+import webbrowser
+
 def main():
 	
 	if len(sys.argv) < 2:
@@ -64,7 +66,10 @@ def main():
 	else:
 		print("PoolId found in pool description. Skipping the pool factory!")
 		poolId = pool["poolId"];
-	print(bal.balGetLinkToFrontend(poolId));
+
+	poolLink = bal.balGetLinkToFrontend(poolId);
+	if not poolLink == "":
+		webbrowser.open_new_tab(poolLink);
 
 	print();
 	print("==============================================================")
