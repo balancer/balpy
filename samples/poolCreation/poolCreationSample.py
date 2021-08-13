@@ -64,7 +64,8 @@ def main():
 	else:
 		print("PoolId found in pool description. Skipping the pool factory!")
 		poolId = pool["poolId"];
-	
+	print(bal.balGetLinkToFrontend(poolId));
+
 	print();
 	print("==============================================================")
 	print("=============== Step 4: Register Pool in Vault ===============")
