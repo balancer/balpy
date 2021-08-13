@@ -60,23 +60,27 @@ class balpy(object):
 	contractDirectories = {
 							"Vault": {
 								"directory":"20210418-vault",
-								"addressKey":"vault"
+								"addressKey":"Vault"
 							},
 							"WeightedPoolFactory": {
 								"directory":"20210418-weighted-pool",
-								"addressKey":"nTokensFactory"
+								"addressKey":"WeightedPoolFactory"
 							},
 							"WeightedPool2TokensFactory": {
 								"directory":"20210418-weighted-pool",
-								"addressKey":"2TokensFactory"
+								"addressKey":"WeightedPool2TokensFactory"
 							},
 							"StablePoolFactory": {
 								"directory":"20210624-stable-pool",
-								"addressKey":"factory"
+								"addressKey":"StablePoolFactory"
 							},
 							"LiquidityBootstrappingPoolFactory": {
 								"directory":"20210721-liquidity-bootstrapping-pool",
-								"addressKey":"factory"
+								"addressKey":"LiquidityBootstrappingPoolFactory"
+							},
+							"MetaStablePoolFactory": {
+								"directory":"20210727-meta-stable-pool",
+								"addressKey":"MetaStablePoolFactory"
 							}
 						};
 
@@ -168,7 +172,8 @@ class balpy(object):
 			abiPath = os.path.join('deployments', subdir , "abi", contractType + '.json');
 			try:
 				f = pkgutil.get_data(__name__, abiPath).decode();
-				currAbi = json.loads(f)["abi"];
+				currAbi = json.loads(f);
+
 				self.abis[contractType] = currAbi;
 			except BaseException as error:
 				self.ERROR('Error accessing file: {}'.format(abiPath))
