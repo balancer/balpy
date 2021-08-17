@@ -11,23 +11,20 @@ balpy has been tested on:
 
 ### Install
 I recommend using a virtual environment:
-
+```bash
 python3 -m venv ./venv
-
 source ./venv/bin/activate
-
 python3 -m pip install balpy
-
+```
 See release on PyPI: https://pypi.org/project/balpy/
 
 ### Build from source
+```bash
 git clone https://github.com/gerrrg/balpy.git
-
 cd balpy
-
 python3 -m build
-
 python3 -m pip install dist/<your_build>.whl
+```
 
 ### Environment Variables
 You must set these two environment variables in order to use the balpy module
