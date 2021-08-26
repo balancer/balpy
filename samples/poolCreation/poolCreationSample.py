@@ -72,12 +72,12 @@ def main():
 		webbrowser.open_new_tab(poolLink);
 
 	print();
-	print("==============================================================")
-	print("=============== Step 4: Register Pool in Vault ===============")
-	print("==============================================================")
+	print("==================================================================")
+	print("=============== Step 4: Add Initial Tokens to Pool ===============")
+	print("==================================================================")
 	print();
 
-	txHash = bal.balRegisterPoolWithVault(pool, poolId, gasPriceGweiOverride=gasPriceGweiOverride)
+	txHash = bal.balJoinPoolInit(pool, poolId, gasPriceGweiOverride=gasPriceGweiOverride)
 
 if __name__ == '__main__':
 	main();

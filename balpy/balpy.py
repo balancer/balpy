@@ -760,6 +760,10 @@ class balpy(object):
 		return(txHash);
 
 	def balRegisterPoolWithVault(self, poolDescription, poolId, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		self.WARN("\"balRegisterPoolWithVault\" is deprecated. Please use \"balJoinPoolInit\".")
+		self.balJoinPoolInit(poolDescription, poolId, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride)
+
+	def balJoinPoolInit(self, poolDescription, poolId, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 
 		(sortedTokens, checksumTokens) = self.balSortTokens(list(poolDescription["tokens"].keys()));
 		initialBalancesBySortedTokens = [poolDescription["tokens"][token]["initialBalance"] for token in sortedTokens];
