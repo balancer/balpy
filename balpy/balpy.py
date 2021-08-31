@@ -51,7 +51,7 @@ class balpy(object):
 						"goerli":	{"id":5,		"blockExplorerUrl":"goerli.etherscan.io"													},
 						"kovan":	{"id":42,		"blockExplorerUrl":"kovan.etherscan.io",			"balFrontend":"kovan.app.balancer.fi/#/"},
 						"polygon":	{"id":137,		"blockExplorerUrl":"polygonscan.com",				"balFrontend":"polygon.balancer.fi/#/"	},
-						"arbitrum":	{"id":42161,	"blockExplorerUrl":"explorer.arbitrum.io",													}
+						"arbitrum":	{"id":42161,		"blockExplorerUrl":"arbiscan.io",													}
 					};
 
 	# ABIs and Deployment Addresses
