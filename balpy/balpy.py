@@ -682,18 +682,6 @@ class balpy(object):
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
 		swapFeePercentage = int(poolData["swapFeePercent"] * 1e16);
 		owner = self.balSetOwner(poolData);
-		if not owner == self.address:
-			self.WARN("!!! You are not the owner for your Investment Pool !!!")
-			self.WARN("You:\t\t" + self.address)
-			self.WARN("Pool Owner:\t" + owner)
-
-			print();
-			self.WARN("Only the pool owner can call permissioned functions, such as changing weights or the management fee.")
-			self.WARN(owner + " should either be you, or a multi-sig or other contract that you control and can call permissioned functions from.")
-			self.WARN("If you DO control " + owner + ", you will need to use the \"INIT\" join type from that address")
-			cancelTimeSec = 30;
-			self.WARN("If the owner mismatch is was unintentional, you have " + str(cancelTimeSec) + " seconds to cancel with Ctrl+C.")
-			time.sleep(cancelTimeSec);
 
 		rateProviders = [poolData["tokens"][token]["rateProvider"] for token in tokens]
 		priceRateCacheDurations = [poolData["tokens"][token]["priceRateCacheDuration"] for token in tokens]
@@ -718,6 +706,18 @@ class balpy(object):
 		# Deployed factory doesn't allow asset managers
 		# assetManagers = [0 for i in range(0,len(tokens))]
 		owner = self.balSetOwner(poolData);
+		if not owner == self.address:
+			self.WARN("!!! You are not the owner for your Investment Pool !!!")
+			self.WARN("You:\t\t" + self.address)
+			self.WARN("Pool Owner:\t" + owner)
+
+			print();
+			self.WARN("Only the pool owner can call permissioned functions, such as changing weights or the management fee.")
+			self.WARN(owner + " should either be you, or a multi-sig or other contract that you control and can call permissioned functions from.")
+			self.WARN("If you DO control " + owner + ", you will need to use the \"INIT\" join type from that address")
+			cancelTimeSec = 30;
+			self.WARN("If the owner mismatch is was unintentional, you have " + str(cancelTimeSec) + " seconds to cancel with Ctrl+C.")
+			time.sleep(cancelTimeSec);
 
 		createFunction = factory.functions.create(	poolData["name"],
 													poolData["symbol"],
