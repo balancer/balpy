@@ -81,6 +81,10 @@ class balpy(object):
 							"MetaStablePoolFactory": {
 								"directory":"20210727-meta-stable-pool",
 								"addressKey":"MetaStablePoolFactory"
+							},
+							"InvestmentPoolFactory": {
+								"directory":"20210907-investment-pool",
+								"addressKey":"InvestmentPoolFactory"
 							}
 						};
 
@@ -693,6 +697,38 @@ class balpy(object):
 													owner);
 		return(createFunction);
 
+	def balCreateFnInvestmentPoolFactory(self, poolData):
+		factory = self.balGetFactoryContract("InvestmentPoolFactory");
+		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
+		swapFeePercentage = int(poolData["swapFeePercent"] * 1e16);
+		intWithDecimalsWeights = [int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18)) for t in tokens];
+		managementFeePercentage = int(poolData["managementFeePercent"] * 1e16);
+		# Deployed factory doesn't allow asset managers
+		# assetManagers = [0 for i in range(0,len(tokens))]
+		owner = self.balSetOwner(poolData);
+		if not owner == self.address:
+			self.WARN("!!! You are not the owner for your Investment Pool !!!")
+			self.WARN("You:\t\t" + self.address)
+			self.WARN("Pool Owner:\t" + owner)
+
+			print();
+			self.WARN("Only the pool owner can call permissioned functions, such as changing weights or the management fee.")
+			self.WARN(owner + " should either be you, or a multi-sig or other contract that you control and can call permissioned functions from.")
+			self.WARN("If you DO control " + owner + ", you will need to use the \"INIT\" join type from that address")
+			cancelTimeSec = 30;
+			self.WARN("If the owner mismatch is was unintentional, you have " + str(cancelTimeSec) + " seconds to cancel with Ctrl+C.")
+			time.sleep(cancelTimeSec);
+
+		createFunction = factory.functions.create(	poolData["name"],
+													poolData["symbol"],
+													checksumTokens,
+													intWithDecimalsWeights,
+													swapFeePercentage,
+													owner,
+													poolData["swapEnabledOnStart"],
+													managementFeePercentage);
+		return(createFunction);
+
 	def balCreatePoolInFactory(self, poolDescription, gasFactor, gasPriceSpeed, nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 		createFunction = None;
 		poolFactoryName = poolDescription["poolType"] + "Factory";
@@ -710,6 +746,8 @@ class balpy(object):
 			createFunction = self.balCreateFnLBPoolFactory(poolDescription);
 		if poolFactoryName == "MetaStablePoolFactory":
 			createFunction = self.balCreateFnMetaStablePoolFactory(poolDescription);
+		if poolFactoryName == "InvestmentPoolFactory":
+			createFunction = self.balCreateFnInvestmentPoolFactory(poolDescription);
 		if createFunction is None:
 			print("No pool factory found with name:", poolFactoryName);
 			print("Currently supported pool types are:");
@@ -718,6 +756,7 @@ class balpy(object):
 			print("\tStablePool");
 			print("\tLiquidityBootstrappingPool");
 			print("\tMetaStablePool");
+			print("\tInvestmentPool");
 			return(False);
 
 		if not createFunction:
