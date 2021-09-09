@@ -10,7 +10,9 @@ import pkgutil
 from decimal import *
 
 # web3 
-from web3 import Web3
+from web3 import Web3, middleware
+from web3.gas_strategies.time_based import glacial_gas_price_strategy, slow_gas_price_strategy, medium_gas_price_strategy, fast_gas_price_strategy
+
 import eth_abi
 
 from balpy import balancerErrors as be
@@ -42,6 +44,12 @@ class balpy(object):
 			"average":"ProposeGasPrice",
 			"fast":"FastGasPrice"
 	};
+	speedDict = {
+			"glacial":glacial_gas_price_strategy,
+			"slow":slow_gas_price_strategy,
+			"medium":medium_gas_price_strategy,
+			"fast":fast_gas_price_strategy
+	}
 
 	# Network parameters
 	networkParams = {
@@ -163,6 +171,12 @@ class balpy(object):
 		acct = self.web3.eth.account.privateKeyToAccount(self.privateKey);
 		self.web3.eth.default_account = acct.address;
 		self.address = acct.address;
+
+		# initialize gas block caches
+		self.currGasPriceSpeed = None;
+		self.web3.middleware_onion.add(middleware.time_based_cache_middleware)
+		self.web3.middleware_onion.add(middleware.latest_block_based_cache_middleware)
+		self.web3.middleware_onion.add(middleware.simple_cache_middleware)
 
 		if self.verbose:
 			print("Initialized account", self.web3.eth.default_account);
@@ -515,6 +529,22 @@ class balpy(object):
 		r = requests.get("https://gasstation-mainnet.matic.network/")
 		prices = r.json();
 		return(prices[speed]);
+
+	def getGasPrice(self, speed):
+		allowedSpeeds = list(self.speedDict.keys());
+		if speed not in allowedSpeeds:
+			self.ERROR("Speed entered is:" + speed);
+			self.ERROR("Speed must be one of the following options:");
+			for s in allowedSpeeds:
+				print("\t" + s);
+			return(False);
+
+		if not speed == self.currGasPriceSpeed:
+			self.currGasPriceSpeed = speed;
+			self.web3.eth.set_gas_price_strategy(self.speedDict[speed]);
+
+		gasPrice = self.web3.eth.generateGasPrice() * 1e-9;
+		return(gasPrice)
 
 	def balSortTokens(self, tokensIn):
 		# tokens need to be sorted as lowercase, but if they're provided as checksum, then
