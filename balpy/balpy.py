@@ -12,6 +12,7 @@ from decimal import *
 # web3 
 from web3 import Web3, middleware
 from web3.gas_strategies.time_based import glacial_gas_price_strategy, slow_gas_price_strategy, medium_gas_price_strategy, fast_gas_price_strategy
+from web3.middleware import geth_poa_middleware
 
 import eth_abi
 
@@ -177,6 +178,9 @@ class balpy(object):
 		self.web3.middleware_onion.add(middleware.time_based_cache_middleware)
 		self.web3.middleware_onion.add(middleware.latest_block_based_cache_middleware)
 		self.web3.middleware_onion.add(middleware.simple_cache_middleware)
+
+		# add support for PoA chains
+		self.web3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
 		if self.verbose:
 			print("Initialized account", self.web3.eth.default_account);
