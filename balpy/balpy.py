@@ -48,7 +48,7 @@ class balpy(object):
 	speedDict = {
 			"glacial":glacial_gas_price_strategy,
 			"slow":slow_gas_price_strategy,
-			"medium":medium_gas_price_strategy,
+			"average":medium_gas_price_strategy,
 			"fast":fast_gas_price_strategy
 	}
 
@@ -514,7 +514,9 @@ class balpy(object):
 
 		if not speed in self.etherscanSpeedDict.keys():
 			self.ERROR("Speed entered is:" + speed);
-			print("\tSpeed must be 'slow', 'average', or 'fast'");
+			self.ERROR("Speed must be one of the following options:");
+			for s in self.etherscanSpeedDict.keys():
+				print("\t" + s);
 			return(False);
 
 		response = requests.get("https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=" + self.etherscanApiKey);
@@ -522,6 +524,15 @@ class balpy(object):
 		return(response.json()["result"][self.etherscanSpeedDict[speed]]);
 
 	def getGasPricePolygon(self, speed):
+
+		if speed in self.etherscanSpeedDict.keys():
+			etherscanGasSpeedNamesToPolygon = {
+				"slow":"safeLow",
+				"average":"standard",
+				"fast":"fast"
+			};
+			speed = etherscanGasSpeedNamesToPolygon[speed];
+
 		allowedSpeeds = ["safeLow","standard","fast","fastest"];
 		if speed not in allowedSpeeds:
 			self.ERROR("Speed entered is:" + speed);
