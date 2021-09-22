@@ -2,6 +2,7 @@
 import json
 import math
 import sys
+import time
 
 # thegraph queries
 from gql import gql, Client
@@ -98,10 +99,6 @@ class TheGraph(object):
 			balancers(first: 5) {
 		    id
 		    poolCount
-		    pools {
-		      id
-		    }
-		    totalLiquidity
 		  }
 		}
 		'''
@@ -166,6 +163,37 @@ class TheGraph(object):
 				pool_tokens[curr_id] = pool_data;
 		return(pool_tokens)
 
+	def getV2PoolIDs(self, batch_size, verbose=False):
+
+		if self.client is None:
+			self.initBalV2Graph(verbose=verbose);
+
+		num_pools = self.getNumPools(verbose=verbose);
+		num_calls = math.ceil(num_pools/batch_size)
+
+		if verbose:
+			print("Querying",num_pools, "pools...");
+
+		# query all pools by batch to save time
+		poolIdsByType = {};
+		for i in range(num_calls):
+			response = self.getPools(batch_size, batch_size*i, verbose)
+			for pool in response["pools"]:
+				if pool["poolType"] not in poolIdsByType.keys():
+					poolIdsByType[pool["poolType"]] = [];
+				poolIdsByType[pool["poolType"]].append(pool["id"])
+		header = {};
+		header["stamp"] = time.time();
+		poolCount = 0
+		for t in poolIdsByType.keys():
+			poolCount += len(poolIdsByType[t])
+		header["numPools"] = poolCount;
+
+		data = {};
+		data["header"] = header;
+		data["pools"] = poolIdsByType
+		return(data)
+
 def main():
 	
 	batch_size = 5;
@@ -178,7 +206,7 @@ def main():
 	else:
 		network = sys.argv[1];
 	
-	networks = ["mainnet", "kovan", "polygon"];
+	networks = ["mainnet", "kovan", "polygon", "arbitrum"];
 
 	if not network in networks:
 		print("Network", network, "is not supported!");
