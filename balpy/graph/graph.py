@@ -194,6 +194,30 @@ class TheGraph(object):
 		data["pools"] = poolIdsByType
 		return(data)
 
+	def getPoolBptPriceEstimate(self, poolId, verbose=False):
+
+		self.assertInit();
+		if verbose:
+			print("Getting data for pool", poolId, "from the subgraph...")
+
+		query_string = '''
+			query {{
+				pools(where:{{id: "{poolId}"}}) {{
+					totalShares
+					totalLiquidity
+				}}
+			}}
+			'''
+		formatted_query_string = query_string.format(poolId=poolId);
+		response = self.client.execute(gql(formatted_query_string));
+
+		pool = response["pools"][0]
+		pricePerBpt = float(pool["totalLiquidity"])/float(pool["totalShares"])
+
+		if verbose:
+			print("Got price data:", pricePerBpt)
+		return(pricePerBpt)
+
 def main():
 	
 	batch_size = 5;
