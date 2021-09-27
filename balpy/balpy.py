@@ -868,6 +868,14 @@ class balpy(object):
 		wethAddress = vault.functions.WETH().call();
 		return(wethAddress);
 
+	def balVaultGetPoolTokens(self, poolId):
+		vault = self.web3.eth.contract(address=self.deploymentAddresses["Vault"], abi=self.abis["Vault"]);
+		output = vault.functions.getPoolTokens(poolId).call();
+		tokens = output[0];
+		balances = output[1];
+		lastChangeBlock = output[2];
+		return (tokens, balances, lastChangeBlock);
+
 	def balVaultGetInternalBalance(self, tokens, address=None):
 		if address is None:
 			address = self.web3.eth.default_account;
