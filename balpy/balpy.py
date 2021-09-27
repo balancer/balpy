@@ -68,32 +68,28 @@ class balpy(object):
 	deploymentAddresses = {};
 	contractDirectories = {
 							"Vault": {
-								"directory":"20210418-vault",
-								"addressKey":"Vault"
+								"directory":"20210418-vault"
 							},
 							"WeightedPoolFactory": {
-								"directory":"20210418-weighted-pool",
-								"addressKey":"WeightedPoolFactory"
+								"directory":"20210418-weighted-pool"
 							},
 							"WeightedPool2TokensFactory": {
-								"directory":"20210418-weighted-pool",
-								"addressKey":"WeightedPool2TokensFactory"
+								"directory":"20210418-weighted-pool"
 							},
 							"StablePoolFactory": {
-								"directory":"20210624-stable-pool",
-								"addressKey":"StablePoolFactory"
+								"directory":"20210624-stable-pool"
 							},
 							"LiquidityBootstrappingPoolFactory": {
-								"directory":"20210721-liquidity-bootstrapping-pool",
-								"addressKey":"LiquidityBootstrappingPoolFactory"
+								"directory":"20210721-liquidity-bootstrapping-pool"
 							},
 							"MetaStablePoolFactory": {
-								"directory":"20210727-meta-stable-pool",
-								"addressKey":"MetaStablePoolFactory"
+								"directory":"20210727-meta-stable-pool"
 							},
 							"InvestmentPoolFactory": {
-								"directory":"20210907-investment-pool",
-								"addressKey":"InvestmentPoolFactory"
+								"directory":"20210907-investment-pool"
+							},
+							"Authorizer": {
+								"directory":"20210418-authorizer"
 							}
 						};
 
@@ -188,7 +184,6 @@ class balpy(object):
 
 		for contractType in self.contractDirectories.keys():
 			subdir = self.contractDirectories[contractType]["directory"];
-			addressKey = self.contractDirectories[contractType]["addressKey"];
 
 			# get contract abi from deployment
 			abiPath = os.path.join('deployments', subdir , "abi", contractType + '.json');
@@ -206,11 +201,11 @@ class balpy(object):
 			try:
 				f = pkgutil.get_data(__name__, deploymentPath).decode();
 				currData = json.loads(f);
-				currAddress = currData[addressKey];
+				currAddress = currData[contractType];
 				self.deploymentAddresses[contractType] = currAddress;
 			except BaseException as error:
-				self.ERROR('{} not found for network {}'.format(contractType, self.network))
-				self.ERROR('{}'.format(error))
+				self.WARN('{} not found for network {}'.format(contractType, self.network))
+				self.WARN('{}'.format(error))
 
 		print("Available contracts on", self.network)
 		for element in self.deploymentAddresses.keys():
