@@ -13,9 +13,9 @@ from decimal import *
 from web3 import Web3, middleware
 from web3.gas_strategies.time_based import glacial_gas_price_strategy, slow_gas_price_strategy, medium_gas_price_strategy, fast_gas_price_strategy
 from web3.middleware import geth_poa_middleware
-
+from web3._utils.abi import get_abi_output_types
 import eth_abi
-
+from multicall.constants import MULTICALL_ADDRESSES
 from balpy import balancerErrors as be
 
 class balpy(object):
@@ -68,32 +68,28 @@ class balpy(object):
 	deploymentAddresses = {};
 	contractDirectories = {
 							"Vault": {
-								"directory":"20210418-vault",
-								"addressKey":"Vault"
+								"directory":"20210418-vault"
 							},
 							"WeightedPoolFactory": {
-								"directory":"20210418-weighted-pool",
-								"addressKey":"WeightedPoolFactory"
+								"directory":"20210418-weighted-pool"
 							},
 							"WeightedPool2TokensFactory": {
-								"directory":"20210418-weighted-pool",
-								"addressKey":"WeightedPool2TokensFactory"
+								"directory":"20210418-weighted-pool"
 							},
 							"StablePoolFactory": {
-								"directory":"20210624-stable-pool",
-								"addressKey":"StablePoolFactory"
+								"directory":"20210624-stable-pool"
 							},
 							"LiquidityBootstrappingPoolFactory": {
-								"directory":"20210721-liquidity-bootstrapping-pool",
-								"addressKey":"LiquidityBootstrappingPoolFactory"
+								"directory":"20210721-liquidity-bootstrapping-pool"
 							},
 							"MetaStablePoolFactory": {
-								"directory":"20210727-meta-stable-pool",
-								"addressKey":"MetaStablePoolFactory"
+								"directory":"20210727-meta-stable-pool"
 							},
 							"InvestmentPoolFactory": {
-								"directory":"20210907-investment-pool",
-								"addressKey":"InvestmentPoolFactory"
+								"directory":"20210907-investment-pool"
+							},
+							"Authorizer": {
+								"directory":"20210418-authorizer"
 							}
 						};
 
@@ -247,8 +243,8 @@ class balpy(object):
 					currAddress = currData[contractType];
 				self.deploymentAddresses[contractType] = currAddress;
 			except BaseException as error:
-				self.ERROR('{} not found for network {}'.format(contractType, self.network))
-				self.ERROR('{}'.format(error))
+				self.WARN('{} not found for network {}'.format(contractType, self.network))
+				self.WARN('{}'.format(error))
 
 		print("Available contracts on", self.network)
 		for element in self.deploymentAddresses.keys():
@@ -911,6 +907,14 @@ class balpy(object):
 		wethAddress = vault.functions.WETH().call();
 		return(wethAddress);
 
+	def balVaultGetPoolTokens(self, poolId):
+		vault = self.web3.eth.contract(address=self.deploymentAddresses["Vault"], abi=self.abis["Vault"]);
+		output = vault.functions.getPoolTokens(poolId).call();
+		tokens = output[0];
+		balances = output[1];
+		lastChangeBlock = output[2];
+		return (tokens, balances, lastChangeBlock);
+
 	def balVaultGetInternalBalance(self, tokens, address=None):
 		if address is None:
 			address = self.web3.eth.default_account;
@@ -1037,4 +1041,158 @@ class balpy(object):
 		else:
 			return("")
 
+	def multiCallLoadContract(self):
+		abiPath = os.path.join('abi/multiCall.json');
+		f = pkgutil.get_data(__name__, abiPath).decode();
+		abi = json.loads(f);
+		multicallAddress = MULTICALL_ADDRESSES[self.networkParams[self.network]["id"]];
+		multiCall = self.web3.eth.contract(self.web3.toChecksumAddress(multicallAddress), abi=abi);
+		return(multiCall);
 
+	def multiCallErc20BatchDecimals(self, tokens):
+		multiCall = self.multiCallLoadContract();
+
+		payload = [];
+		for token in tokens:
+			currTokenContract = self.erc20GetContract(token);
+			callData = currTokenContract.encodeABI(fn_name='decimals');
+			chkToken = self.web3.toChecksumAddress(token);
+			payload.append((chkToken, callData));
+
+		# make the actual call to MultiCall
+		outputData = multiCall.functions.aggregate(payload).call();
+		tokensToDecimals = {};
+
+		fn = currTokenContract.get_function_by_name(fn_name='decimals');
+		outputAbi = get_abi_output_types(fn.abi);
+
+		for token, odBytes in zip(tokens, outputData[1]):
+			decodedOutputData = self.web3.codec.decode_abi(outputAbi, odBytes);
+			decimals = decodedOutputData[0];
+			tokensToDecimals[token] = decimals;
+			self.decimals[token] = decimals;
+
+		return(tokensToDecimals);
+
+	def getOnchainData(self, pools):
+		# load the multicall contract
+		multiCall = self.multiCallLoadContract();
+
+		# load the vault contract
+		vault = self.web3.eth.contract(address=self.deploymentAddresses["Vault"], abi=self.abis["Vault"]);
+		target = self.deploymentAddresses["Vault"];
+
+		poolAbis = {};
+		for poolType in pools.keys():
+			abiPath = os.path.join('abi/pools/'+poolType+'Pool.json');
+			f = pkgutil.get_data(__name__, abiPath).decode();
+			poolAbi = json.loads(f);
+			poolAbis[poolType] = poolAbi;
+
+		payload = [];
+		pidAndFns = [];
+		outputAbis = {};
+		poolToType = {};
+		for poolType in pools.keys():
+			poolIds = pools[poolType];
+			poolAbi = poolAbis[poolType];
+			# construct all the calls in format (VaultAddress, encodedCallData)
+			for poolId in poolIds:
+				poolToType[poolId] = poolType;
+				poolAddress = self.web3.toChecksumAddress(poolId[:42]);
+				currPool = self.web3.eth.contract(address=poolAddress, abi=poolAbi);
+
+				# all pools need tokens and swap fee
+				callData = vault.encodeABI(fn_name='getPoolTokens', args=[poolId]);
+				payload.append((target, callData));
+				pidAndFns.append((poolId, 'getPoolTokens'));
+				if not 'getPoolTokens' in outputAbis.keys():
+					fn = vault.get_function_by_name(fn_name='getPoolTokens');
+					outputAbis['getPoolTokens'] = get_abi_output_types(fn.abi);
+
+				callData = currPool.encodeABI(fn_name='getSwapFeePercentage');
+				payload.append((poolAddress, callData));
+				pidAndFns.append((poolId, 'getSwapFeePercentage'));
+				if not 'getSwapFeePercentage' in outputAbis.keys():
+					fn = currPool.get_function_by_name(fn_name='getSwapFeePercentage');
+					outputAbis['getSwapFeePercentage'] = get_abi_output_types(fn.abi);
+
+				if poolType in ["Weighted", "LiquidityBootstrapping", "Investment"]:
+					callData = currPool.encodeABI(fn_name='getNormalizedWeights');
+					payload.append((poolAddress, callData));
+					pidAndFns.append((poolId, 'getNormalizedWeights'));
+					if not 'getNormalizedWeights' in outputAbis.keys():
+						fn = currPool.get_function_by_name(fn_name='getNormalizedWeights');
+						outputAbis['getNormalizedWeights'] = get_abi_output_types(fn.abi);
+
+				if poolType in ["Stable", "MetaStable"]:
+					callData = currPool.encodeABI(fn_name='getAmplificationParameter');
+					payload.append((poolAddress, callData));
+					pidAndFns.append((poolId, 'getAmplificationParameter'));
+					if not 'getAmplificationParameter' in outputAbis.keys():
+						fn = currPool.get_function_by_name(fn_name='getAmplificationParameter');
+						outputAbis['getAmplificationParameter'] = get_abi_output_types(fn.abi);
+
+		# make the actual call to MultiCall
+		outputData = multiCall.functions.aggregate(payload).call();
+
+		chainDataOut = {};
+		chainDataBookkeeping = {};
+		for odBytes, pidAndFn in zip(outputData[1], pidAndFns):
+			poolId = pidAndFn[0];
+			decoder = pidAndFn[1];
+			decodedOutputData = self.web3.codec.decode_abi(outputAbis[decoder], odBytes);
+
+			if not poolId in chainDataOut.keys():
+				chainDataOut[poolId] = {"type":poolToType[poolId]};
+				chainDataBookkeeping[poolId] = {};
+
+			if decoder == "getPoolTokens":
+				addresses = list(decodedOutputData[0]);
+				balances = 	list(decodedOutputData[1]);
+				lastChangeBlock = decodedOutputData[2];
+
+				chainDataOut[poolId]["lastChangeBlock"] = lastChangeBlock;
+				chainDataBookkeeping[poolId]["orderedAddresses"] = addresses;
+
+				chainDataOut[poolId]["tokens"] = {};
+				for address, balance in zip(addresses, balances):
+					chainDataOut[poolId]["tokens"][address] = {"rawBalance":str(balance)};
+
+			elif decoder == "getNormalizedWeights":
+				normalizedWeights = list(decodedOutputData[0]);
+				addresses = chainDataBookkeeping[poolId]["orderedAddresses"];
+				for address, normalizedWeight in zip(addresses, normalizedWeights):
+					weight = Decimal(str(normalizedWeight)) * Decimal(str(1e-18));
+					chainDataOut[poolId]["tokens"][address]["weight"] = str(weight);
+
+			elif decoder == "getSwapFeePercentage":
+				swapFee = Decimal(decodedOutputData[0]) * Decimal(str(1e-18));
+				chainDataOut[poolId]["swapFee"] = str(swapFee);
+
+			elif decoder == "getAmplificationParameter":
+				rawAmp  = Decimal(decodedOutputData[0]);
+				scaling = Decimal(decodedOutputData[2]);
+				chainDataOut[poolId]["amplificationParameter"] = str(rawAmp/scaling);
+
+		#find tokens for which decimals have not been cached
+		tokens = set();
+		for pool in chainDataOut.keys():
+			for token in chainDataOut[pool]["tokens"].keys():
+				tokens.add(token);
+		haveDecimalsFor = set(self.decimals.keys());
+		needDecimalsFor = tokens - haveDecimalsFor;
+
+		#if there are any, query them onchain using multicall
+		if len(needDecimalsFor) > 0:
+			print("New tokens found. Caching decimals for", len(needDecimalsFor), "tokens...")
+			self.multiCallErc20BatchDecimals(needDecimalsFor);
+
+		# update rawBalances to have decimal adjusted values
+		for pool in chainDataOut.keys():
+			for token in chainDataOut[pool]["tokens"].keys():
+				rawBalance = chainDataOut[pool]["tokens"][token]["rawBalance"];
+				decimals = self.erc20GetDecimals(token);
+				chainDataOut[pool]["tokens"][token]["balance"] = str(Decimal(rawBalance) * Decimal(10**(-decimals)));
+
+		return(chainDataOut);
