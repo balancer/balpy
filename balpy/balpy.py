@@ -123,7 +123,7 @@ class balpy(object):
 		"BPT_IN_FOR_EXACT_TOKENS_OUT": 2
 	}
 
-	def __init__(self, network=None, verbose=True):
+	def __init__(self, network=None, verbose=True, customConfigFile=None):
 		super(balpy, self).__init__();
 
 		self.verbose = verbose;
@@ -186,27 +186,65 @@ class balpy(object):
 			print("Initialized account", self.web3.eth.default_account);
 			print("Connected to web3 at", endpoint);
 
+		usingCustomConfig = (not customConfigFile is None);
+		customConfig = None;
+		if usingCustomConfig:
+
+			# load custom config file if it exists, quit if not
+			if not os.path.isfile(customConfigFile):
+				bal.ERROR("Custom config file" + customConfigFile + " not found!");
+				quit();
+			else:
+				with open(customConfigFile,'r') as f:
+					customConfig = json.load(f);
+			# print(json.dumps(customConfig, indent=4))
+
+			# ensure all required fields are in the customConfig
+			requiredFields = ["contracts", "networkParams"]
+			hasAllRequirements = True;
+			for req in requiredFields:
+				if not req in customConfig.keys():
+					hasAllRequirements = False;
+			if not hasAllRequirements:
+				bal.ERROR("Not all custom fields are in the custom config!");
+				print("You must include:");
+				for req in requiredFields:
+					print("\t"+req);
+				print();
+				quit();
+
+			# add network params for network
+			currNetworkParams = {
+				"id":				customConfig["networkParams"]["id"],
+				"blockExplorerUrl":	customConfig["networkParams"]["blockExplorerUrl"]
+			}
+
+			if "balFrontend" in customConfig["networkParams"].keys():
+				currNetworkParams["balFrontend"] = customConfig["networkParams"]["balFrontend"];
+			self.networkParams[self.network] = currNetworkParams;
+
 		for contractType in self.contractDirectories.keys():
 			subdir = self.contractDirectories[contractType]["directory"];
-			addressKey = self.contractDirectories[contractType]["addressKey"];
 
 			# get contract abi from deployment
 			abiPath = os.path.join('deployments', subdir , "abi", contractType + '.json');
 			try:
 				f = pkgutil.get_data(__name__, abiPath).decode();
 				currAbi = json.loads(f);
-
 				self.abis[contractType] = currAbi;
 			except BaseException as error:
 				self.ERROR('Error accessing file: {}'.format(abiPath))
 				self.ERROR('{}'.format(error))
 
 			# get deployment address for given network
-			deploymentPath = os.path.join('deployments', subdir, "output", self.network + '.json');
 			try:
-				f = pkgutil.get_data(__name__, deploymentPath).decode();
-				currData = json.loads(f);
-				currAddress = currData[addressKey];
+				if usingCustomConfig:
+					currAddress = customConfig["contracts"][contractType];
+				else:
+					deploymentPath = os.path.join('deployments', subdir, "output", self.network + '.json');
+					f = pkgutil.get_data(__name__, deploymentPath).decode();
+					currData = json.loads(f);
+					currAddress = currData[contractType];
 				self.deploymentAddresses[contractType] = currAddress;
 			except BaseException as error:
 				self.ERROR('{} not found for network {}'.format(contractType, self.network))
