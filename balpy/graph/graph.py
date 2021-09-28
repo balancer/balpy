@@ -8,6 +8,9 @@ import time
 from gql import gql, Client
 from gql.transport.requests import RequestsHTTPTransport
 
+# for customized endpoints
+import requests
+
 class TheGraph(object):
 	client = None;
 	
@@ -22,13 +25,24 @@ class TheGraph(object):
 		https://thegraph.com/legacy-explorer/subgraph/balancer-labs/balancer-v2
 	"""
 
-	def __init__(self, network="mainnet"):
+	def __init__(self, network="mainnet", customUrl=None):
 		super(TheGraph, self).__init__()
 		self.network = network;
-		self.initBalV2Graph(network);
+		self.initBalV2Graph(self, customUrl=customUrl);
 
 	def printJson(self, curr_dict):
 		print(json.dumps(curr_dict, indent=4))
+
+	def callCustomEndpoint(self, query):
+
+		query = query.replace("\n"," ");
+		query = query.replace("\t","");
+		queryDict = {"query":query};
+		serializedData = json.dumps(queryDict);
+		headers = {"Content-Type":"application/json"};
+		r = requests.post(self.graphUrl, data=serializedData, headers=headers);
+		response = r.json();
+		return(response["data"])
 
 	def assertInit(self):
 		if self.client is None:
@@ -38,7 +52,12 @@ class TheGraph(object):
 			print()
 			return(None);
 
-	def initBalV2Graph(self, verbose=False):
+	def initBalV2Graph(self, verbose=False, customUrl=None):
+		if not customUrl is None:
+			self.client = "CUSTOM"
+			self.graphUrl = customUrl;
+			return(True);
+
 		network_string = "";
 		if not self.network == "mainnet":
 			network_string = "-" + self.network;
@@ -46,8 +65,9 @@ class TheGraph(object):
 		if verbose:
 			print("Balancer V2 Subgraph initializing on:", self.network, "...")
 
+		graphUrl = "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer" + network_string + "-v2";
 		balancer_transport=RequestsHTTPTransport(
-		    url="https://api.thegraph.com/subgraphs/name/balancer-labs/balancer" + network_string + "-v2",
+		    url=graphUrl,
 		    verify=True,
 		    retries=3
 		)
@@ -82,7 +102,10 @@ class TheGraph(object):
 		}}
 		''';
 		formatted_query_string = pool_token_query.format(pool_id=pool_id)
-		response = self.client.execute(gql(formatted_query_string))
+		if self.client == "CUSTOM":
+			response = self.callCustomEndpoint(formatted_query_string);
+		else:
+			response = self.client.execute(gql(formatted_query_string))
 		if verbose:
 			print("Got pool tokens.")
 		return(response["poolTokens"])
@@ -102,7 +125,10 @@ class TheGraph(object):
 		  }
 		}
 		'''
-		response = self.client.execute(gql(balancers_query))
+		if self.client == "CUSTOM":
+			response = self.callCustomEndpoint(balancers_query);
+		else:
+			response = self.client.execute(gql(balancers_query));
 
 		if verbose:
 			print("Got response from the Subgraph")
@@ -131,7 +157,10 @@ class TheGraph(object):
 			}}
 			'''
 		formatted_query_string = query_string.format(first=batch_size, skip=skips)
-		response = self.client.execute(gql(formatted_query_string))
+		if self.client == "CUSTOM":
+			response = self.callCustomEndpoint(formatted_query_string);
+		else:
+			response = self.client.execute(gql(formatted_query_string))
 
 		if verbose:
 			print("Got pools.")
@@ -220,7 +249,7 @@ class TheGraph(object):
 
 def main():
 	
-	batch_size = 5;
+	batch_size = 30;
 	print();
 
 	if len(sys.argv) < 2:
@@ -241,7 +270,9 @@ def main():
 		quit();
 
 	verbose = True;
+
 	graph = TheGraph(network)
+	# pools = graph.getNumPools(verbose=verbose)
 	pools = graph.getV2Pools(batch_size, verbose=verbose)
 	graph.printJson(pools)
 
