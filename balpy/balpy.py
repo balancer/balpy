@@ -1144,7 +1144,7 @@ class balpy(object):
 			decodedOutputData = self.web3.codec.decode_abi(outputAbis[decoder], odBytes);
 
 			if not poolId in chainDataOut.keys():
-				chainDataOut[poolId] = {"type":poolToType[poolId]};
+				chainDataOut[poolId] = {"poolType":poolToType[poolId]};
 				chainDataBookkeeping[poolId] = {};
 
 			if decoder == "getPoolTokens":
@@ -1173,7 +1173,7 @@ class balpy(object):
 			elif decoder == "getAmplificationParameter":
 				rawAmp  = Decimal(decodedOutputData[0]);
 				scaling = Decimal(decodedOutputData[2]);
-				chainDataOut[poolId]["amplificationParameter"] = str(rawAmp/scaling);
+				chainDataOut[poolId]["amp"] = str(rawAmp/scaling);
 
 		#find tokens for which decimals have not been cached
 		tokens = set();
