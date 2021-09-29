@@ -1181,6 +1181,8 @@ class balpy(object):
 			for token in chainDataOut[pool]["tokens"].keys():
 				tokens.add(token);
 		haveDecimalsFor = set(self.decimals.keys());
+
+		# set subtraction (A - B) gives "What is in A that isn't in B?"
 		needDecimalsFor = tokens - haveDecimalsFor;
 
 		#if there are any, query them onchain using multicall
