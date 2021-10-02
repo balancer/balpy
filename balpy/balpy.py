@@ -909,6 +909,46 @@ class balpy(object):
 														deadline);
 		return(batchSwapFunction);
 
+	def balDoSingleSwap(self, swapDescription, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		singleSwapFn = self.balCreateFnSingleSwap(swapDescription);
+		tx = self.buildTx(singleSwapFn, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
+		txHash = self.sendTx(tx, isAsync);
+		return(txHash);
+
+	def balCreateFnSingleSwap(self, swapDescription):
+		# If the swap is givenIn, the amount is on assetIn, and the limit is on assetOut, and vice versa
+		swapData = swapDescription["singleSwap"];
+		kind = int(swapData["kind"]);
+
+		if kind == 0:
+			amountToken = self.web3.toChecksumAddress(swapData["assetIn"]);
+			limitToken = self.web3.toChecksumAddress(swapData["assetOut"]);
+		else:
+			amountToken = self.web3.toChecksumAddress(swapData["assetOut"]);
+			limitToken = self.web3.toChecksumAddress(swapData["assetIn"]);
+
+		amountDecimals = self.erc20GetDecimals(amountToken);
+		limitDecimals = self.erc20GetDecimals(limitToken);
+		scaledAmount = int(Decimal(swapData["amount"]) * Decimal(10**(amountDecimals)));
+		scaledLimit = int(Decimal(swapDescription["limit"]) * Decimal(10**(limitDecimals)));
+
+		swap = (
+			swapData["poolId"],
+			kind,
+			swapData["assetIn"],
+			swapData["assetOut"],
+			scaledAmount,
+			"0x"
+		);
+		funds = (	self.web3.toChecksumAddress(swapDescription["funds"]["sender"]),
+					swapDescription["funds"]["fromInternalBalance"],
+					self.web3.toChecksumAddress(swapDescription["funds"]["recipient"]),
+					swapDescription["funds"]["toInternalBalance"]);
+		deadline = int(swapDescription["deadline"]);
+		vault = self.web3.eth.contract(address=self.deploymentAddresses["Vault"], abi=self.abis["Vault"]);
+		singleSwapFunction = vault.functions.swap(swap, funds, scaledLimit, deadline);
+		return(singleSwapFunction);
+	
 	def balGetLinkToFrontend(self, poolId):
 		if "balFrontend" in self.networkParams[self.network].keys():
 			return("https://" + self.networkParams[self.network]["balFrontend"] + "pool/0x" + poolId);
