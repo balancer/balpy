@@ -985,11 +985,54 @@ class balpy(object):
 		# 	userData = "something else";
 		return(userData);
 
+	def balDoSwap(self, swapDescription, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		swapFn = self.balCreateFnSwap(swapDescription);
+		tx = self.buildTx(swapFn, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
+		txHash = self.sendTx(tx, isAsync);
+		return(txHash);
+
 	def balDoBatchSwap(self, swapDescription, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 		batchSwapFn = self.balCreateFnBatchSwap(swapDescription);
 		tx = self.buildTx(batchSwapFn, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
 		txHash = self.sendTx(tx, isAsync);
 		return(txHash);
+
+	def balCreateFnSwap(self, swapDescription):
+		kind = int(swapDescription["kind"])
+		limitedToken = None;
+		amountToken = None;
+		if kind == 0: #GIVEN_IN
+			amountToken = swapDescription["assetIn"];
+			limitedToken = swapDescription["assetOut"];
+		elif kind == 1: #GIVEN_OUT
+			amountToken = swapDescription["assetOut"];
+			limitedToken = swapDescription["assetIn"];
+
+		amountWei = int(Decimal(swapDescription["amount"]) * 10 ** Decimal(self.erc20GetDecimals(amountToken)));
+		limitWei = int(Decimal(swapDescription["limit"]) * 10 ** Decimal(self.erc20GetDecimals(limitedToken)));
+
+		swapStruct = (
+			swapDescription["poolId"],
+			kind,
+			self.web3.toChecksumAddress(swapDescription["assetIn"]),
+			self.web3.toChecksumAddress(swapDescription["assetOut"]),
+			amountWei,
+			self.balSwapGetUserData(None)
+		)
+		fundStruct = (
+			self.web3.toChecksumAddress(swapDescription["fund"]["sender"]),
+			swapDescription["fund"]["fromInternalBalance"],
+			self.web3.toChecksumAddress(swapDescription["fund"]["recipient"]),
+			swapDescription["fund"]["toInternalBalance"]
+		)
+		vault = self.web3.eth.contract(address=self.deploymentAddresses["Vault"], abi=self.abis["Vault"]);
+		singleSwapFunction = vault.functions.swap(
+			swapStruct,
+			fundStruct,
+			limitWei,
+			int(swapDescription["deadline"])
+		)
+		return(singleSwapFunction);
 
 	def balCreateFnBatchSwap(self, swapDescription):
 		(sortedTokens, originalIdxToSortedIdx, sortedIdxToOriginalIdx) = self.balReorderTokenDicts(swapDescription["assets"]);
