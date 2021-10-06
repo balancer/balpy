@@ -8,6 +8,7 @@ import time
 import sys
 import pkgutil
 from decimal import *
+import multiprocessing
 
 # web3 
 from web3 import Web3, middleware
@@ -17,6 +18,16 @@ from web3._utils.abi import get_abi_output_types
 import eth_abi
 from multicall.constants import MULTICALL_ADDRESSES
 from balpy import balancerErrors as be
+
+def processData(threadId, endpoint, inputData, outputAbiData, return_dict):
+	outputAbis = outputAbiData;
+	w3 = Web3(Web3.HTTPProvider(endpoint))
+	decodedOutputDataBlocks = [];
+	for odBytes, pidAndFn in inputData:
+		decoder = pidAndFn[1];
+		decodedOutputData = w3.codec.decode_abi(outputAbis[decoder], odBytes);
+		decodedOutputDataBlocks.append(decodedOutputData);
+	return_dict[threadId] = decodedOutputDataBlocks;
 
 class balpy(object):
 	
@@ -164,6 +175,7 @@ class balpy(object):
 		if endpoint is None:
 			endpoint = 'https://' + self.network + '.infura.io/v3/' + self.infuraApiKey;
 
+		self.endpoint = endpoint;
 		self.web3 = Web3(Web3.HTTPProvider(endpoint));
 		acct = self.web3.eth.account.privateKeyToAccount(self.privateKey);
 		self.web3.eth.default_account = acct.address;
@@ -1088,7 +1100,10 @@ class balpy(object):
 		abiPath = os.path.join('abi/multiCall.json');
 		f = pkgutil.get_data(__name__, abiPath).decode();
 		abi = json.loads(f);
-		multicallAddress = MULTICALL_ADDRESSES[self.networkParams[self.network]["id"]];
+		if self.network == "arbitrum":
+			multicallAddress = "0x269ff446d9892c9e19082564df3f5e8741e190a1";
+		else:
+			multicallAddress = MULTICALL_ADDRESSES[self.networkParams[self.network]["id"]];
 		multiCall = self.web3.eth.contract(self.web3.toChecksumAddress(multicallAddress), abi=abi);
 		return(multiCall);
 
@@ -1117,7 +1132,12 @@ class balpy(object):
 
 		return(tokensToDecimals);
 
-	def getOnchainData(self, pools):
+	# multiprocessing helper
+	def chunks(self, a, n):
+		k, m = divmod(len(a), n)
+		return (a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n))
+
+	def getOnchainData(self, pools, procs=None):
 		# load the multicall contract
 		multiCall = self.multiCallLoadContract();
 
@@ -1135,6 +1155,7 @@ class balpy(object):
 		payload = [];
 		pidAndFns = [];
 		outputAbis = {};
+
 		poolToType = {};
 		for poolType in pools.keys():
 			poolIds = pools[poolType];
@@ -1145,14 +1166,13 @@ class balpy(object):
 				poolAddress = self.web3.toChecksumAddress(poolId[:42]);
 				currPool = self.web3.eth.contract(address=poolAddress, abi=poolAbi);
 
-				# all pools need tokens and swap fee
+				# === all pools need tokens and swap fee ===
 				callData = vault.encodeABI(fn_name='getPoolTokens', args=[poolId]);
 				payload.append((target, callData));
 				pidAndFns.append((poolId, 'getPoolTokens'));
 				if not 'getPoolTokens' in outputAbis.keys():
 					fn = vault.get_function_by_name(fn_name='getPoolTokens');
 					outputAbis['getPoolTokens'] = get_abi_output_types(fn.abi);
-
 				callData = currPool.encodeABI(fn_name='getSwapFeePercentage');
 				payload.append((poolAddress, callData));
 				pidAndFns.append((poolId, 'getSwapFeePercentage'));
@@ -1160,6 +1180,7 @@ class balpy(object):
 					fn = currPool.get_function_by_name(fn_name='getSwapFeePercentage');
 					outputAbis['getSwapFeePercentage'] = get_abi_output_types(fn.abi);
 
+				# === using weighted math ===
 				if poolType in ["Weighted", "LiquidityBootstrapping", "Investment"]:
 					callData = currPool.encodeABI(fn_name='getNormalizedWeights');
 					payload.append((poolAddress, callData));
@@ -1168,6 +1189,7 @@ class balpy(object):
 						fn = currPool.get_function_by_name(fn_name='getNormalizedWeights');
 						outputAbis['getNormalizedWeights'] = get_abi_output_types(fn.abi);
 
+				# === using stable math ===
 				if poolType in ["Stable", "MetaStable"]:
 					callData = currPool.encodeABI(fn_name='getAmplificationParameter');
 					payload.append((poolAddress, callData));
@@ -1176,16 +1198,56 @@ class balpy(object):
 						fn = currPool.get_function_by_name(fn_name='getAmplificationParameter');
 						outputAbis['getAmplificationParameter'] = get_abi_output_types(fn.abi);
 
+				# === have pausable swaps by pool owner ===
+				if poolType in [ "LiquidityBootstrapping", "Investment"]:
+					callData = currPool.encodeABI(fn_name='getSwapEnabled');
+					payload.append((poolAddress, callData));
+					pidAndFns.append((poolId, 'getSwapEnabled'));
+					if not 'getSwapEnabled' in outputAbis.keys():
+						fn = currPool.get_function_by_name(fn_name='getSwapEnabled');
+						outputAbis['getSwapEnabled'] = get_abi_output_types(fn.abi);
+
 		# make the actual call to MultiCall
 		outputData = multiCall.functions.aggregate(payload).call();
 
 		chainDataOut = {};
 		chainDataBookkeeping = {};
-		for odBytes, pidAndFn in zip(outputData[1], pidAndFns):
+		decodedOutputDataBlocks = [];
+
+		if procs is None:
+			for odBytes, pidAndFn in zip(outputData[1], pidAndFns):
+				decoder = pidAndFn[1];
+				decodedOutputData = self.web3.codec.decode_abi(outputAbis[decoder], odBytes);
+				decodedOutputDataBlocks.append(decodedOutputData);
+		else:
+			if procs == 0:
+				procs = multiprocessing.cpu_count();
+
+			zippedData = list(zip(outputData[1], pidAndFns));
+			inputDataChunks = list(self.chunks(zippedData, procs));
+
+			manager = multiprocessing.Manager()
+			return_dict = manager.dict()
+			jobs = [];
+
+			for i in range(0, procs):
+				process = multiprocessing.Process(	target=processData,
+													args=(i, self.endpoint, inputDataChunks[i], outputAbis, return_dict))
+				jobs.append(process)
+			# Start the processes
+			for j in jobs:
+				j.start()
+			# Ensure all of the processes have finished
+			for j in jobs:
+				j.join()
+			sortedKeys = list(return_dict.keys());
+			sortedKeys.sort();
+			for i in sortedKeys:
+				decodedOutputDataBlocks.extend(return_dict[i]);
+
+		for decodedOutputData, odBytes, pidAndFn in zip(decodedOutputDataBlocks,outputData[1], pidAndFns):
 			poolId = pidAndFn[0];
 			decoder = pidAndFn[1];
-			decodedOutputData = self.web3.codec.decode_abi(outputAbis[decoder], odBytes);
-
 			if not poolId in chainDataOut.keys():
 				chainDataOut[poolId] = {"poolType":poolToType[poolId]};
 				chainDataBookkeeping[poolId] = {};
@@ -1217,6 +1279,9 @@ class balpy(object):
 				rawAmp  = Decimal(decodedOutputData[0]);
 				scaling = Decimal(decodedOutputData[2]);
 				chainDataOut[poolId]["amp"] = str(rawAmp/scaling);
+
+			elif decoder == "getSwapEnabled":
+				chainDataOut[poolId]["swapEnabled"] = decodedOutputData[0];
 
 		#find tokens for which decimals have not been cached
 		tokens = set();
