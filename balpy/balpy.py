@@ -510,7 +510,7 @@ class balpy(object):
 				targetAllowance = Decimal(targetAllowance) * Decimal(10**decimals);
 			targetAllowance = int(targetAllowance);
 			print("Insufficient Allowance: Increasing to", targetAllowance);
-			txHash = self.erc20SignAndSendNewAllowance(tokenAddress, allowedAddress, targetAllowance, gasFactor, gasSpeed, nonceOverride=nonceOverride, isAsync=isAsync);
+			txHash = self.erc20SignAndSendNewAllowance(tokenAddress, allowedAddress, targetAllowance, gasFactor, gasSpeed, nonceOverride=nonceOverride, isAsync=isAsync, gasPriceGweiOverride=gasPriceGweiOverride);
 			return(txHash);
 		return(None);
 
