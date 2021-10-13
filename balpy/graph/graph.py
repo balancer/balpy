@@ -25,10 +25,10 @@ class TheGraph(object):
 		https://thegraph.com/legacy-explorer/subgraph/balancer-labs/balancer-v2
 	"""
 
-	def __init__(self, network="mainnet", customUrl=None):
+	def __init__(self, network="mainnet", customUrl=None, usingJsonEndpoint=False):
 		super(TheGraph, self).__init__()
 		self.network = network;
-		self.initBalV2Graph(self, customUrl=customUrl);
+		self.initBalV2Graph(customUrl=customUrl, usingJsonEndpoint=usingJsonEndpoint);
 
 	def printJson(self, curr_dict):
 		print(json.dumps(curr_dict, indent=4))
@@ -52,8 +52,8 @@ class TheGraph(object):
 			print()
 			return(None);
 
-	def initBalV2Graph(self, verbose=False, customUrl=None):
-		if not customUrl is None:
+	def initBalV2Graph(self, customUrl, usingJsonEndpoint, verbose=False):
+		if not customUrl is None and usingJsonEndpoint:
 			self.client = "CUSTOM"
 			self.graphUrl = customUrl;
 			return(True);
@@ -66,6 +66,9 @@ class TheGraph(object):
 			print("Balancer V2 Subgraph initializing on:", self.network, "...")
 
 		graphUrl = "https://api.thegraph.com/subgraphs/name/balancer-labs/balancer" + network_string + "-v2";
+		if not customUrl is None and not usingJsonEndpoint:
+			graphUrl = customUrl;
+
 		balancer_transport=RequestsHTTPTransport(
 		    url=graphUrl,
 		    verify=True,
