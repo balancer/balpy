@@ -805,7 +805,6 @@ class balpy(object):
 			print();
 			self.WARN("Only the pool owner can call permissioned functions, such as changing weights or the management fee.")
 			self.WARN(owner + " should either be you, or a multi-sig or other contract that you control and can call permissioned functions from.")
-			self.WARN("If you DO control " + owner + ", you will need to use the \"INIT\" join type from that address")
 			cancelTimeSec = 30;
 			self.WARN("If the owner mismatch is was unintentional, you have " + str(cancelTimeSec) + " seconds to cancel with Ctrl+C.")
 			time.sleep(cancelTimeSec);
