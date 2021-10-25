@@ -889,6 +889,39 @@ class balpy(object):
 		txHash = self.sendTx(tx);
 		return(txHash);
 
+	def balJoinPoolTokenInForExactBptOut(self, joinDescription, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		(sortedTokens, checksumTokens) = self.balSortTokens(list(joinDescription["tokens"].keys()));
+		amountsBySortedTokens = [joinDescription["tokens"][token]["amount"] for token in sortedTokens];
+		rawAmounts = self.balConvertTokensToWei(sortedTokens, amountsBySortedTokens);
+
+		index = -1;
+		counter = -1;
+		for amt in rawAmounts:
+			counter += 1;
+			if amt > 0:
+				if index == -1:
+					index = counter;
+				else:
+					self.ERROR("Multiple tokens have amounts for a single token join! Only one token can have a non-zero amount!");
+					return(False);
+		if index == -1:
+			self.ERROR("No tokens have amounts. You must have one token with a non-zero amount!");
+			return(False);
+
+		userDataEncoded = eth_abi.encode_abi(	['uint256', 'uint256', 'uint256'],
+												[self.JoinKind["TOKEN_IN_FOR_EXACT_BPT_OUT"], joinDescription["minBptOut"], index]);
+
+		joinPoolRequestTuple = (checksumTokens, rawAmounts, userDataEncoded.hex(), joinDescription["fromInternalBalance"]);
+		vault = self.web3.eth.contract(address=self.deploymentAddresses["Vault"], abi=self.abis["Vault"]);
+		joinPoolFunction = vault.functions.joinPool(joinDescription["poolId"],
+												self.web3.toChecksumAddress(self.web3.eth.default_account),
+												self.web3.toChecksumAddress(self.web3.eth.default_account),
+												joinPoolRequestTuple);
+		tx = self.buildTx(joinPoolFunction, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
+		print("Transaction Generated!");
+		txHash = self.sendTx(tx);
+		return(txHash);
+
 	def balRegisterPoolWithVault(self, poolDescription, poolId, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 		self.WARN("\"balRegisterPoolWithVault\" is deprecated. Please use \"balJoinPoolInit\".")
 		self.balJoinPoolInit(poolDescription, poolId, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride)
@@ -969,6 +1002,32 @@ class balpy(object):
 		vault = self.web3.eth.contract(address=self.deploymentAddresses["Vault"], abi=self.abis["Vault"]);
 		manageUserBalanceFn = vault.functions.manageUserBalance(inputTupleList);
 		return(manageUserBalanceFn);
+
+	def balStablePoolGetAbi(self):
+		abiPath = os.path.join('abi/pools/StablePool.json');
+		f = pkgutil.get_data(__name__, abiPath).decode();
+		poolAbi = json.loads(f);
+		return(poolAbi)
+
+	def balStablePoolGetAmplificationParameter(self, poolId):
+		poolAddress = self.web3.toChecksumAddress(poolId[:42]);
+		pool = self.web3.eth.contract(address=poolAddress, abi=self.balStablePoolGetAbi());
+		(value, isUpdating, precision) = pool.functions.getAmplificationParameter().call();
+		return(value, isUpdating, precision); 
+	
+	def balStablePoolStartAmplificationParameterUpdate(self, poolId, rawEndValue, endTime, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		poolAddress = self.web3.toChecksumAddress(poolId[:42]);
+		pool = self.web3.eth.contract(address=poolAddress, abi=self.balStablePoolGetAbi());
+		 
+		owner = pool.functions.getOwner().call();
+		if not self.address == owner:
+			self.ERROR("You are not the pool owner; this transaction will fail.");
+			return(False);
+
+		fn = pool.functions.startAmplificationParameterUpdate(rawEndValue, endTime);
+		tx = self.buildTx(fn, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
+		txHash = self.sendTx(tx, isAsync);
+		return(txHash);
 
 	def balSwapIsFlashSwap(self, swapDescription):
 		for amount in swapDescription["limits"]:
