@@ -553,7 +553,7 @@ class balpy(object):
 	# =====================
 	# ====Etherscan Gas====
 	# =====================
-	def getGasPriceEtherscanGwei(self, speed):
+	def getGasPriceEtherscanGwei(self, speed, etherscanUrl="etherscan.io"):
 		dt = (time.time() - self.lastEtherscanCallTime);
 		if dt < 1.0/self.etherscanMaxRate:
 			time.sleep((1.0/self.etherscanMaxRate - dt) * 1.1);
@@ -565,7 +565,7 @@ class balpy(object):
 				print("\t" + s);
 			return(False);
 
-		response = requests.get("https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=" + self.etherscanApiKey);
+		response = requests.get("https://api." + etherscanDomain + "/api?module=gastracker&action=gasoracle&apikey=" + self.etherscanApiKey);
 		self.lastEtherscanCallTime = time.time();
 		return(response.json()["result"][self.etherscanSpeedDict[speed]]);
 
