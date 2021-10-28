@@ -565,7 +565,7 @@ class balpy(object):
 				print("\t" + s);
 			return(False);
 
-		response = requests.get("https://api." + etherscanDomain + "/api?module=gastracker&action=gasoracle&apikey=" + self.etherscanApiKey);
+		response = requests.get("https://api." + etherscanUrl + "/api?module=gastracker&action=gasoracle&apikey=" + self.etherscanApiKey);
 		self.lastEtherscanCallTime = time.time();
 		return(response.json()["result"][self.etherscanSpeedDict[speed]]);
 
