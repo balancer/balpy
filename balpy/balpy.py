@@ -1002,21 +1002,21 @@ class balpy(object):
 		manageUserBalanceFn = vault.functions.manageUserBalance(inputTupleList);
 		return(manageUserBalanceFn);
 
-	def balStablePoolGetAbi(self):
-		abiPath = os.path.join('abi/pools/StablePool.json');
+	def balPoolGetAbi(self, poolType):
+		abiPath = os.path.join('abi/pools/'+ poolType + '.json');
 		f = pkgutil.get_data(__name__, abiPath).decode();
 		poolAbi = json.loads(f);
 		return(poolAbi)
 
 	def balStablePoolGetAmplificationParameter(self, poolId):
 		poolAddress = self.web3.toChecksumAddress(poolId[:42]);
-		pool = self.web3.eth.contract(address=poolAddress, abi=self.balStablePoolGetAbi());
+		pool = self.web3.eth.contract(address=poolAddress, abi=self.balPoolGetAbi("StablePool"));
 		(value, isUpdating, precision) = pool.functions.getAmplificationParameter().call();
 		return(value, isUpdating, precision); 
 	
 	def balStablePoolStartAmplificationParameterUpdate(self, poolId, rawEndValue, endTime, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 		poolAddress = self.web3.toChecksumAddress(poolId[:42]);
-		pool = self.web3.eth.contract(address=poolAddress, abi=self.balStablePoolGetAbi());
+		pool = self.web3.eth.contract(address=poolAddress, abi=self.balPoolGetAbi("StablePool"));
 		 
 		owner = pool.functions.getOwner().call();
 		if not self.address == owner:
@@ -1027,6 +1027,13 @@ class balpy(object):
 		tx = self.buildTx(fn, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
 		txHash = self.sendTx(tx, isAsync);
 		return(txHash);
+
+	# https://dev.balancer.fi/references/contracts/apis/pools/weightedpool2tokens#gettimeweightedaverage
+	def balOraclePoolGetTimeWeightedAverage(self, poolId, queries):
+		poolAddress = self.web3.toChecksumAddress(poolId[:42]);
+		pool = self.web3.eth.contract(address=poolAddress, abi=self.balPoolGetAbi("WeightedPool2Tokens"));
+		results = pool.functions.getTimeWeightedAverage(queries).call();
+		return(results);
 
 	def balSwapIsFlashSwap(self, swapDescription):
 		for amount in swapDescription["limits"]:
