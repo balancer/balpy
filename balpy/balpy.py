@@ -15,6 +15,7 @@ from web3 import Web3, middleware
 from web3.gas_strategies.time_based import glacial_gas_price_strategy, slow_gas_price_strategy, medium_gas_price_strategy, fast_gas_price_strategy
 from web3.middleware import geth_poa_middleware
 from web3._utils.abi import get_abi_output_types
+
 import eth_abi
 from multicall.constants import MULTICALL_ADDRESSES
 from balpy import balancerErrors as be
@@ -553,7 +554,7 @@ class balpy(object):
 	# =====================
 	# ====Etherscan Gas====
 	# =====================
-	def getGasPriceEtherscanGwei(self, speed, etherscanUrl="etherscan.io"):
+	def getGasPriceEtherscanGwei(self, speed):
 		dt = (time.time() - self.lastEtherscanCallTime);
 		if dt < 1.0/self.etherscanMaxRate:
 			time.sleep((1.0/self.etherscanMaxRate - dt) * 1.1);
@@ -565,9 +566,43 @@ class balpy(object):
 				print("\t" + s);
 			return(False);
 
-		response = requests.get("https://api." + etherscanUrl + "/api?module=gastracker&action=gasoracle&apikey=" + self.etherscanApiKey);
+		etherscanUrl = self.networkParams[self.network]["blockExplorerUrl"]
+		separator = ".";
+
+		response = requests.get("https://api" + separator + etherscanUrl + "/api?module=gastracker&action=gasoracle&apikey=" + self.etherscanApiKey);
 		self.lastEtherscanCallTime = time.time();
 		return(response.json()["result"][self.etherscanSpeedDict[speed]]);
+
+	def getTransactionsByAddress(self, address, internal=False, startblock=0, verbose=False):
+		if verbose:
+			print("\tQuerying data after block", startblock);
+
+		internalString = "";
+		if internal:
+			internalString = "internal";
+
+		etherscanUrl = self.networkParams[self.network]["blockExplorerUrl"]
+		separator = ".";
+		if self.network == "kovan":
+			separator = "-";
+
+		url = [];
+		url.append("https://api" + separator + etherscanUrl + "/api?module=account&action=txlist{}&address=".format(internalString));
+		url.append(address);
+		url.append("&startblock={}&endblock=99999999&sort=asc&apikey=".format(startblock));
+		url.append(self.etherscanApiKey);
+		urlString = "".join(url);
+
+		# faking a user-agent resolves the 403 (forbidden) errors on api-kovan.etherscan.io
+		headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
+		r = requests.get(urlString, headers=headers);
+		txns = r.json();
+
+		if int(txns["status"]) == 0:
+			self.ERROR("Etherscan query failed. Please try again.");
+			return(False);
+		elif int(txns["status"]) == 1:
+			return(txns["result"]);
 
 	def getGasPricePolygon(self, speed):
 
@@ -724,14 +759,14 @@ class balpy(object):
 	def balCreateFnStablePoolFactory(self, poolData):
 		factory = self.balGetFactoryContract("StablePoolFactory");
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
-		swapFeePercentage = int(poolData["swapFeePercent"] * 1e16);
+		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
 
 		owner = self.balSetOwner(poolData);
 
 		createFunction = factory.functions.create(	poolData["name"],
 													poolData["symbol"],
 													checksumTokens,
-													poolData["amplificationParameter"],
+													int(poolData["amplificationParameter"]),
 													swapFeePercentage,
 													owner);
 		return(createFunction);
@@ -743,7 +778,7 @@ class balpy(object):
 		if not self.balWeightsEqualOne(poolData):
 			return(False);
 
-		swapFeePercentage = int(poolData["swapFeePercent"] * 1e16);
+		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
 		intWithDecimalsWeights = [int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18)) for t in tokens];
 		owner = self.balSetOwner(poolData);
 
@@ -771,16 +806,16 @@ class balpy(object):
 	def balCreateFnMetaStablePoolFactory(self, poolData):
 		factory = self.balGetFactoryContract("MetaStablePoolFactory");
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
-		swapFeePercentage = int(poolData["swapFeePercent"] * 1e16);
+		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
 		owner = self.balSetOwner(poolData);
 
 		rateProviders = [poolData["tokens"][token]["rateProvider"] for token in tokens]
-		priceRateCacheDurations = [poolData["tokens"][token]["priceRateCacheDuration"] for token in tokens]
+		priceRateCacheDurations = [int(poolData["tokens"][token]["priceRateCacheDuration"]) for token in tokens]
 
 		createFunction = factory.functions.create(	poolData["name"],
 													poolData["symbol"],
 													checksumTokens,
-													poolData["amplificationParameter"],
+													int(poolData["amplificationParameter"]),
 													rateProviders,
 													priceRateCacheDurations,
 													swapFeePercentage,
@@ -791,9 +826,9 @@ class balpy(object):
 	def balCreateFnInvestmentPoolFactory(self, poolData):
 		factory = self.balGetFactoryContract("InvestmentPoolFactory");
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
-		swapFeePercentage = int(poolData["swapFeePercent"] * 1e16);
+		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
 		intWithDecimalsWeights = [int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18)) for t in tokens];
-		managementFeePercentage = int(poolData["managementFeePercent"] * 1e16);
+		managementFeePercentage = int(Decimal(poolData["managementFeePercent"]) * Decimal(1e16));
 		# Deployed factory doesn't allow asset managers
 		# assetManagers = [0 for i in range(0,len(tokens))]
 		owner = self.balSetOwner(poolData);
@@ -1006,7 +1041,173 @@ class balpy(object):
 		abiPath = os.path.join('abi/pools/'+ poolType + '.json');
 		f = pkgutil.get_data(__name__, abiPath).decode();
 		poolAbi = json.loads(f);
-		return(poolAbi)
+		return(poolAbi);
+
+	def balPooldIdToAddress(self, poolId):
+		poolAddress = self.web3.toChecksumAddress(poolId[:42]);
+		return(poolAddress);
+
+	def balGetPoolCreationData(self, poolId):
+		address = self.balPooldIdToAddress(poolId);
+		txns = self.getTransactionsByAddress(address, internal=True);
+
+		poolTypeByContract = {};
+		for poolType in self.deploymentAddresses.keys():
+			deploymentAddress = self.deploymentAddresses[poolType].lower();
+			poolTypeByContract[deploymentAddress] = poolType;
+
+		poolFactoryType = None;
+		for txn in txns:
+			if txn["from"].lower() in poolTypeByContract.keys():
+				poolFactoryType = poolTypeByContract[txn["from"].lower()];
+				txHash = txn["hash"];
+				stamp = txn["timeStamp"];
+				break;
+		return(address, poolFactoryType, txHash, stamp);
+
+	def balGetPoolFactoryCreationTime(self, address):
+		txns = self.getTransactionsByAddress(address);
+		return(txns[0]["timeStamp"]);
+
+	def getInputData(self, txHash):
+		transaction = self.web3.eth.get_transaction(txHash);
+		return(transaction.input)
+
+	def balGeneratePoolCreationArguments(self, poolId):
+		# query etherscan for internal transactions to find pool factory, pool creation time, and creation hash
+		(address, poolFactoryType, txHash, stampPool) = self.balGetPoolCreationData(poolId);
+
+		# get the input data used to generate the pool
+		inputData = self.getInputData(txHash);
+
+		# decode those ^ inputs according to the relevant pool factory ABI
+		poolFactoryAddress = self.deploymentAddresses[poolFactoryType];
+		poolFactoryAbi = self.abis[poolFactoryType];
+		poolFactoryContract = self.web3.eth.contract(address=poolFactoryAddress, abi=poolFactoryAbi);
+		decodedPoolData = poolFactoryContract.decode_function_input(inputData)[1];
+
+		# get pool factory creation time to calculate pauseWindowDuration
+		stampFactory = self.balGetPoolFactoryCreationTime(poolFactoryAddress);
+
+		# make sure arguments exist/are proper types to be encoded
+		if "weights" in decodedPoolData.keys():
+			for i in range(len(decodedPoolData["weights"])):
+				decodedPoolData["weights"][i] = int(decodedPoolData["weights"][i]);
+		if "priceRateCacheDuration" in decodedPoolData.keys():
+			for i in range(len(decodedPoolData["priceRateCacheDuration"])):
+				decodedPoolData["priceRateCacheDuration"][i] = int(decodedPoolData["priceRateCacheDuration"][i]);
+		if poolFactoryType == "InvestmentPoolFactory" and not "assetManagers" in decodedPoolData.keys():
+			decodedPoolData["assetManagers"] = [];
+			for i in range(len(decodedPoolData["weights"])):
+				decodedPoolData["assetManagers"].append(self.ZERO_ADDRESS);
+
+		# times for pause/buffer
+		daysToSec = 24*60*60; # hr * min * sec
+		pauseDays = 90;
+		bufferPeriodDays = 30;
+
+		# calculate proper durations
+		pauseWindowDurationSec = max( (pauseDays*daysToSec) - (int(stampPool) - int(stampFactory)), 0);
+		bufferPeriodDurationSec = bufferPeriodDays * daysToSec;
+		if pauseWindowDurationSec == 0:
+			bufferPeriodDurationSec = 0;
+
+		poolType = poolFactoryType.replace("Factory","");
+		poolAbi = self.balPoolGetAbi(poolType);
+
+		structInConstructor = False;
+		if poolType == "WeightedPool":
+			args = [self.deploymentAddresses["Vault"],
+					decodedPoolData["name"],
+					decodedPoolData["symbol"],
+					decodedPoolData["tokens"],
+					decodedPoolData["weights"],
+					int(decodedPoolData["swapFeePercentage"]),
+					int(pauseWindowDurationSec),
+					int(bufferPeriodDurationSec),
+					decodedPoolData["owner"]];
+		elif poolType == "WeightedPool2Tokens":
+			args = [self.deploymentAddresses["Vault"],
+					decodedPoolData["name"],
+					decodedPoolData["symbol"],
+					decodedPoolData["tokens"][0],
+					decodedPoolData["tokens"][1],
+					int(decodedPoolData["weights"][0]),
+					int(decodedPoolData["weights"][1]),
+					int(decodedPoolData["swapFeePercentage"]),
+					int(pauseWindowDurationSec),
+					int(bufferPeriodDurationSec),
+					decodedPoolData["oracleEnabled"],
+					decodedPoolData["owner"]];
+			structInConstructor = True;
+		elif poolType == "StablePool":
+			args = [self.deploymentAddresses["Vault"],
+					decodedPoolData["name"],
+					decodedPoolData["symbol"],
+					decodedPoolData["tokens"],
+					int(decodedPoolData["amplificationParameter"]),
+					int(decodedPoolData["swapFeePercentage"]),
+					int(pauseWindowDurationSec),
+					int(bufferPeriodDurationSec),
+					decodedPoolData["owner"]];
+		elif poolType == "MetaStablePool":
+			args = [self.deploymentAddresses["Vault"],
+					decodedPoolData["name"],
+					decodedPoolData["symbol"],
+					decodedPoolData["tokens"],
+					decodedPoolData["rateProviders"],
+					decodedPoolData["priceRateCacheDuration"],
+					int(decodedPoolData["amplificationParameter"]),
+					int(decodedPoolData["swapFeePercentage"]),
+					int(pauseWindowDurationSec),
+					int(bufferPeriodDurationSec),
+					decodedPoolData["oracleEnabled"],
+					decodedPoolData["owner"]];
+			structInConstructor = True;
+		elif poolType == "LiquidityBootstrappingPool":
+			args = [self.deploymentAddresses["Vault"],
+					decodedPoolData["name"],
+					decodedPoolData["symbol"],
+					decodedPoolData["tokens"],
+					decodedPoolData["weights"],
+					int(decodedPoolData["swapFeePercentage"]),
+					int(pauseWindowDurationSec),
+					int(bufferPeriodDurationSec),
+					decodedPoolData["owner"],
+					decodedPoolData["swapEnabledOnStart"]];
+		elif poolType == "InvestmentPool":
+			args = [self.deploymentAddresses["Vault"],
+					decodedPoolData["name"],
+					decodedPoolData["symbol"],
+					decodedPoolData["tokens"],
+					decodedPoolData["weights"],
+					decodedPoolData["assetManagers"],
+					int(decodedPoolData["swapFeePercentage"]),
+					int(pauseWindowDurationSec),
+					int(bufferPeriodDurationSec),
+					decodedPoolData["owner"],
+					decodedPoolData["swapEnabledOnStart"],
+					int(decodedPoolData["managementSwapFeePercentage"])];
+			structInConstructor = True;
+		else:
+			self.ERROR("PoolType", poolType, "not found!")
+			return(False);
+
+		# encode constructor data
+		poolContract = self.web3.eth.contract(address=address, abi=poolAbi);
+		if structInConstructor:
+			args = (tuple(args),)
+		data = poolContract._encode_constructor_data(args=args);
+		encodedData = data[2:]; #cut off the 0x
+
+		command = "yarn hardhat verify-contract --id {} --name {} --address {} --network {} --key {} --args {}"
+		output = command.format(self.contractDirectories[poolFactoryType]["directory"],
+								poolType,
+								address,
+								self.network,
+								self.etherscanApiKey,
+								encodedData)
+		return(output);
 
 	def balStablePoolGetAmplificationParameter(self, poolId):
 		poolAddress = self.web3.toChecksumAddress(poolId[:42]);
