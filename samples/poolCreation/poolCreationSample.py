@@ -34,8 +34,8 @@ def main():
 	tokens = list(pool["tokens"].keys());
 	initialBalances = [pool["tokens"][token]["initialBalance"] for token in tokens];
 	if not bal.erc20HasSufficientBalances(tokens, initialBalances):
-		print("Please fix your insufficient balance before proceeding.")
-		print("Quitting...")
+		print("Please fix your insufficient balance before proceeding.");
+		print("Quitting...");
 		quit();
 
 	print();
@@ -62,9 +62,9 @@ def main():
 		poolId = bal.balGetPoolIdFromHash(txHash);
 		pool["poolId"] = poolId;
 		with open(pathToPool, 'w') as f:
-			json.dump(pool, f, indent=4)
+			json.dump(pool, f, indent=4);
 	else:
-		print("PoolId found in pool description. Skipping the pool factory!")
+		print("PoolId found in pool description. Skipping the pool factory!");
 		poolId = pool["poolId"];
 
 	poolLink = bal.balGetLinkToFrontend(poolId);
@@ -76,8 +76,23 @@ def main():
 	print("=============== Step 4: Add Initial Tokens to Pool ===============")
 	print("==================================================================")
 	print();
+	try:
+		txHash = bal.balJoinPoolInit(pool, poolId, gasPriceGweiOverride=gasPriceGweiOverride);
+	except:
+		print("Joining pool failed! Are you the owner?");
 
-	txHash = bal.balJoinPoolInit(pool, poolId, gasPriceGweiOverride=gasPriceGweiOverride)
+	print();
+	print("============================================================")
+	print("=============== Step 5: Verify Pool Contract ===============")
+	print("============================================================")
+	print();
+
+	command = bal.balGeneratePoolCreationArguments("0x" + poolId);
+	print()
+	print(command)
+	print()
+	print("If you need more complete instructions on what to do with this command, go to:");
+	print("\thttps://dev.balancer.fi/resources/pools/verification");
 
 if __name__ == '__main__':
 	main();
