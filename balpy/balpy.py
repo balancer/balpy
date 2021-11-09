@@ -568,6 +568,8 @@ class balpy(object):
 
 		etherscanUrl = self.networkParams[self.network]["blockExplorerUrl"]
 		separator = ".";
+		if self.network in ["kovan", "ropsten", "rinkeby"]:
+			separator = "-";
 
 		response = requests.get("https://api" + separator + etherscanUrl + "/api?module=gastracker&action=gasoracle&apikey=" + self.etherscanApiKey);
 		self.lastEtherscanCallTime = time.time();
@@ -583,7 +585,7 @@ class balpy(object):
 
 		etherscanUrl = self.networkParams[self.network]["blockExplorerUrl"]
 		separator = ".";
-		if self.network == "kovan":
+		if self.network in ["kovan", "ropsten", "rinkeby"]:
 			separator = "-";
 
 		url = [];

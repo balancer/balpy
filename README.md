@@ -22,8 +22,11 @@ See release on PyPI: https://pypi.org/project/balpy/
 ```bash
 git clone https://github.com/balancer-labs/balpy.git
 cd balpy
+pip install build
 python3 -m build
 python3 -m pip install dist/<your_build>.whl
+
+Ex: pip install --force-reinstall dist/balpy-0.0.0a34-py3-none-any.whl
 ```
 
 ### Environment Variables

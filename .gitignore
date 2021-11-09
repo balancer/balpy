@@ -1,0 +1,6 @@
+.env*
+!.env.example
+node_modules
+.idea
+*.DS_Store
+balpy.egg-info

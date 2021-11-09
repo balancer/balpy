@@ -14,6 +14,8 @@ You must set three environment variables in order to use the balpy module
 - KEY_API_INFURA: 		API key for Infura for sending transactions
 - KEY_PRIVATE: 			Plain text private key for signing transactions
 
+Copy `.env.example` to `.env` and edit your desired key
+
 ## Samples
 
 ### Pool Creation

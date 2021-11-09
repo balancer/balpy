@@ -5,6 +5,12 @@ import json
 
 import webbrowser
 
+from os.path import join, dirname
+from dotenv import load_dotenv
+# Load .env file
+dotenv_path = join(dirname(__file__), '..', '.env')
+load_dotenv(dotenv_path)
+
 def main():
 	
 	if len(sys.argv) < 2:
