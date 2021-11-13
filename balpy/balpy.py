@@ -147,7 +147,7 @@ class balpy(object):
 			network = "kovan";
 		else:
 			print("Network is set to", network);
-		self.network = network;
+		self.network = network.lower();
 
 		# set high decimal precision
 		getcontext().prec = 28;
@@ -381,7 +381,7 @@ class balpy(object):
 				print(e);
 				print("Transaction not found yet, will check again in", delay, "seconds");
 				time.sleep(delay);
-		self.ERROR("Transaction not found in", maxRetries, "retries.");
+		self.ERROR("Transaction not found in" + str(maxRetries) + "retries.");
 		return(False);
 
 	# =====================
@@ -552,13 +552,49 @@ class balpy(object):
 		return(True)
 
 	# =====================
-	# ====Etherscan Gas====
+	# ======Etherscan======
 	# =====================
-	def getGasPriceEtherscanGwei(self, speed):
-		dt = (time.time() - self.lastEtherscanCallTime);
-		if dt < 1.0/self.etherscanMaxRate:
-			time.sleep((1.0/self.etherscanMaxRate - dt) * 1.1);
+	def generateEtherscanApiUrl(self):
+		etherscanUrl = self.networkParams[self.network]["blockExplorerUrl"]
+		separator = ".";
+		if self.network in ["kovan", "rinkeby","goerli"]:
+			separator = "-";
+		urlFront = "https://api" + separator + etherscanUrl;
+		return(urlFront);
 
+	def callEtherscan(self, url, maxRetries=3, verbose=False):
+		urlFront = self.generateEtherscanApiUrl();
+		url = urlFront + url + self.etherscanApiKey;
+		if verbose:
+			print("Calling:", url);
+
+		count = 0;
+		while count < maxRetries:
+			try:
+				dt = (time.time() - self.lastEtherscanCallTime);
+				if dt < 1.0/self.etherscanMaxRate:
+					time.sleep((1.0/self.etherscanMaxRate - dt) * 1.1);
+
+				# faking a user-agent resolves the 403 (forbidden) errors on api-kovan.etherscan.io
+				headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
+				r = requests.get(url, headers=headers);
+				if verbose:
+					print("\t" + r)
+				self.lastEtherscanCallTime = time.time();
+				data = r.json();
+				if verbose:
+					print("\t" + data)
+				return(data);
+			except:
+				count += 1;
+				delaySec = 2;
+				if verbose:
+					self.WARN("Etherscan failed " + str(count) + " times. Retrying in " + str(delaySec) + " seconds...");
+				time.sleep(delaySec);
+		self.ERROR("Etherscan failed " + str(count) + " times.");
+		return(False);
+
+	def getGasPriceEtherscanGwei(self, speed, verbose=False):
 		if not speed in self.etherscanSpeedDict.keys():
 			self.ERROR("Speed entered is:" + speed);
 			self.ERROR("Speed must be one of the following options:");
@@ -566,12 +602,9 @@ class balpy(object):
 				print("\t" + s);
 			return(False);
 
-		etherscanUrl = self.networkParams[self.network]["blockExplorerUrl"]
-		separator = ".";
-
-		response = requests.get("https://api" + separator + etherscanUrl + "/api?module=gastracker&action=gasoracle&apikey=" + self.etherscanApiKey);
-		self.lastEtherscanCallTime = time.time();
-		return(response.json()["result"][self.etherscanSpeedDict[speed]]);
+		urlString = "/api?module=gastracker&action=gasoracle&apikey=";# + self.etherscanApiKey;
+		response = self.callEtherscan(urlString, verbose=verbose);
+		return(response["result"][self.etherscanSpeedDict[speed]]);
 
 	def getTransactionsByAddress(self, address, internal=False, startblock=0, verbose=False):
 		if verbose:
@@ -583,20 +616,15 @@ class balpy(object):
 
 		etherscanUrl = self.networkParams[self.network]["blockExplorerUrl"]
 		separator = ".";
-		if self.network == "kovan":
+		if self.network in ["kovan", "rinkeby","goerli"]:
 			separator = "-";
 
 		url = [];
-		url.append("https://api" + separator + etherscanUrl + "/api?module=account&action=txlist{}&address=".format(internalString));
+		url.append("/api?module=account&action=txlist{}&address=".format(internalString));
 		url.append(address);
 		url.append("&startblock={}&endblock=99999999&sort=asc&apikey=".format(startblock));
-		url.append(self.etherscanApiKey);
 		urlString = "".join(url);
-
-		# faking a user-agent resolves the 403 (forbidden) errors on api-kovan.etherscan.io
-		headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
-		r = requests.get(urlString, headers=headers);
-		txns = r.json();
+		txns = self.callEtherscan(urlString, verbose=verbose);
 
 		if int(txns["status"]) == 0:
 			self.ERROR("Etherscan query failed. Please try again.");
@@ -604,8 +632,16 @@ class balpy(object):
 		elif int(txns["status"]) == 1:
 			return(txns["result"]);
 
-	def getGasPricePolygon(self, speed):
+	def isContractVerified(self, poolId, verbose=False):
+		address = self.balPooldIdToAddress(poolId);
+		url = "/api?module=contract&action=getabi&address={}&apikey=".format(address);
+		results = self.callEtherscan(url, verbose=verbose);
+		if verbose:
+			print(results);
+		isUnverified = (results["result"] == "Contract source code not verified");
+		return(not isUnverified);
 
+	def getGasPricePolygon(self, speed):
 		if speed in self.etherscanSpeedDict.keys():
 			etherscanGasSpeedNamesToPolygon = {
 				"slow":"safeLow",
@@ -1047,9 +1083,9 @@ class balpy(object):
 		poolAddress = self.web3.toChecksumAddress(poolId[:42]);
 		return(poolAddress);
 
-	def balGetPoolCreationData(self, poolId):
+	def balGetPoolCreationData(self, poolId, verbose=False):
 		address = self.balPooldIdToAddress(poolId);
-		txns = self.getTransactionsByAddress(address, internal=True);
+		txns = self.getTransactionsByAddress(address, internal=True, verbose=verbose);
 
 		poolTypeByContract = {};
 		for poolType in self.deploymentAddresses.keys():
@@ -1073,9 +1109,9 @@ class balpy(object):
 		transaction = self.web3.eth.get_transaction(txHash);
 		return(transaction.input)
 
-	def balGeneratePoolCreationArguments(self, poolId):
+	def balGeneratePoolCreationArguments(self, poolId, verbose=False):
 		# query etherscan for internal transactions to find pool factory, pool creation time, and creation hash
-		(address, poolFactoryType, txHash, stampPool) = self.balGetPoolCreationData(poolId);
+		(address, poolFactoryType, txHash, stampPool) = self.balGetPoolCreationData(poolId, verbose=verbose);
 
 		# get the input data used to generate the pool
 		inputData = self.getInputData(txHash);
