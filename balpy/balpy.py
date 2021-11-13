@@ -1110,6 +1110,10 @@ class balpy(object):
 		return(transaction.input)
 
 	def balGeneratePoolCreationArguments(self, poolId, verbose=False):
+		if self.network in ["polygon", "arbitrum"]:
+			self.ERROR("Automated pool verification doesn't work on" + self.network + "yet. Please try the method outlined in the docs using Tenderly.");
+			return(False);
+
 		# query etherscan for internal transactions to find pool factory, pool creation time, and creation hash
 		(address, poolFactoryType, txHash, stampPool) = self.balGetPoolCreationData(poolId, verbose=verbose);
 
