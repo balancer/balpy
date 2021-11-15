@@ -1473,18 +1473,27 @@ class balpy(object):
 				currPool = self.web3.eth.contract(address=poolAddress, abi=poolAbi);
 
 				# === all pools need tokens and swap fee ===
+				# get pool tokens
 				callData = vault.encodeABI(fn_name='getPoolTokens', args=[poolId]);
 				payload.append((target, callData));
 				pidAndFns.append((poolId, 'getPoolTokens'));
 				if not 'getPoolTokens' in outputAbis.keys():
 					fn = vault.get_function_by_name(fn_name='getPoolTokens');
 					outputAbis['getPoolTokens'] = get_abi_output_types(fn.abi);
+				# get swap fee
 				callData = currPool.encodeABI(fn_name='getSwapFeePercentage');
 				payload.append((poolAddress, callData));
 				pidAndFns.append((poolId, 'getSwapFeePercentage'));
 				if not 'getSwapFeePercentage' in outputAbis.keys():
 					fn = currPool.get_function_by_name(fn_name='getSwapFeePercentage');
 					outputAbis['getSwapFeePercentage'] = get_abi_output_types(fn.abi);
+				# get paused state
+				callData = currPool.encodeABI(fn_name='getPausedState');
+				payload.append((poolAddress, callData));
+				pidAndFns.append((poolId, 'getPausedState'));
+				if not 'getPausedState' in outputAbis.keys():
+					fn = currPool.get_function_by_name(fn_name='getPausedState');
+					outputAbis['getPausedState'] = get_abi_output_types(fn.abi);
 
 				# === using weighted math ===
 				if poolType in ["Weighted", "LiquidityBootstrapping", "Investment"]:
@@ -1521,10 +1530,7 @@ class balpy(object):
 		decodedOutputDataBlocks = [];
 
 		if procs is None:
-			for odBytes, pidAndFn in zip(outputData[1], pidAndFns):
-				decoder = pidAndFn[1];
-				decodedOutputData = self.web3.codec.decode_abi(outputAbis[decoder], odBytes);
-				decodedOutputDataBlocks.append(decodedOutputData);
+			decodedOutputDataBlocks = [self.web3.codec.decode_abi(outputAbis[pidAndFn[1]], odBytes) for odBytes, pidAndFn in zip(outputData[1], pidAndFns)]
 		else:
 			if procs == 0:
 				procs = multiprocessing.cpu_count();
@@ -1588,6 +1594,9 @@ class balpy(object):
 
 			elif decoder == "getSwapEnabled":
 				chainDataOut[poolId]["swapEnabled"] = decodedOutputData[0];
+
+			elif decoder == "getPausedState":
+				chainDataOut[poolId]["pausedState"] = decodedOutputData[0];
 
 		#find tokens for which decimals have not been cached
 		tokens = set();
