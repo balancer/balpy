@@ -8,12 +8,27 @@ import time
 import sys
 import pkgutil
 from decimal import *
+import multiprocessing
 
 # web3 
-from web3 import Web3
-import eth_abi
+from web3 import Web3, middleware
+from web3.gas_strategies.time_based import glacial_gas_price_strategy, slow_gas_price_strategy, medium_gas_price_strategy, fast_gas_price_strategy
+from web3.middleware import geth_poa_middleware
+from web3._utils.abi import get_abi_output_types
 
+import eth_abi
+from multicall.constants import MULTICALL_ADDRESSES
 from balpy import balancerErrors as be
+
+def processData(threadId, endpoint, inputData, outputAbiData, return_dict):
+	outputAbis = outputAbiData;
+	w3 = Web3(Web3.HTTPProvider(endpoint))
+	decodedOutputDataBlocks = [];
+	for odBytes, pidAndFn in inputData:
+		decoder = pidAndFn[1];
+		decodedOutputData = w3.codec.decode_abi(outputAbis[decoder], odBytes);
+		decodedOutputDataBlocks.append(decodedOutputData);
+	return_dict[threadId] = decodedOutputDataBlocks;
 
 class balpy(object):
 	
@@ -44,6 +59,12 @@ class balpy(object):
 			"average":"ProposeGasPrice",
 			"fast":"FastGasPrice"
 	};
+	speedDict = {
+			"glacial":glacial_gas_price_strategy,
+			"slow":slow_gas_price_strategy,
+			"average":medium_gas_price_strategy,
+			"fast":fast_gas_price_strategy
+	}
 
 	# Network parameters
 	networkParams = {
@@ -53,7 +74,7 @@ class balpy(object):
 						"goerli":	{"id":5,		"blockExplorerUrl":"goerli.etherscan.io"													},
 						"kovan":	{"id":42,		"blockExplorerUrl":"kovan.etherscan.io",			"balFrontend":"kovan.app.balancer.fi/#/"},
 						"polygon":	{"id":137,		"blockExplorerUrl":"polygonscan.com",				"balFrontend":"polygon.balancer.fi/#/"	},
-						"arbitrum":	{"id":42161,		"blockExplorerUrl":"arbiscan.io",													}
+						"arbitrum":	{"id":42161,	"blockExplorerUrl":"arbiscan.io",					"balFrontend":"arbitrum.balancer.fi/#/"	}
 					};
 
 	# ABIs and Deployment Addresses
@@ -61,28 +82,28 @@ class balpy(object):
 	deploymentAddresses = {};
 	contractDirectories = {
 							"Vault": {
-								"directory":"20210418-vault",
-								"addressKey":"Vault"
+								"directory":"20210418-vault"
 							},
 							"WeightedPoolFactory": {
-								"directory":"20210418-weighted-pool",
-								"addressKey":"WeightedPoolFactory"
+								"directory":"20210418-weighted-pool"
 							},
 							"WeightedPool2TokensFactory": {
-								"directory":"20210418-weighted-pool",
-								"addressKey":"WeightedPool2TokensFactory"
+								"directory":"20210418-weighted-pool"
 							},
 							"StablePoolFactory": {
-								"directory":"20210624-stable-pool",
-								"addressKey":"StablePoolFactory"
+								"directory":"20210624-stable-pool"
 							},
 							"LiquidityBootstrappingPoolFactory": {
-								"directory":"20210721-liquidity-bootstrapping-pool",
-								"addressKey":"LiquidityBootstrappingPoolFactory"
+								"directory":"20210721-liquidity-bootstrapping-pool"
 							},
 							"MetaStablePoolFactory": {
-								"directory":"20210727-meta-stable-pool",
-								"addressKey":"MetaStablePoolFactory"
+								"directory":"20210727-meta-stable-pool"
+							},
+							"InvestmentPoolFactory": {
+								"directory":"20210907-investment-pool"
+							},
+							"Authorizer": {
+								"directory":"20210418-authorizer"
 							}
 						};
 
@@ -112,7 +133,7 @@ class balpy(object):
 		"BPT_IN_FOR_EXACT_TOKENS_OUT": 2
 	}
 
-	def __init__(self, network=None, verbose=True):
+	def __init__(self, network=None, verbose=True, customConfigFile=None):
 		super(balpy, self).__init__();
 
 		self.verbose = verbose;
@@ -128,7 +149,7 @@ class balpy(object):
 			network = "kovan";
 		else:
 			print("Network is set to", network);
-		self.network = network;
+		self.network = network.lower();
 
 		# set high decimal precision
 		getcontext().prec = 28;
@@ -159,40 +180,88 @@ class balpy(object):
 		if endpoint is None:
 			endpoint = 'https://' + self.network + '.infura.io/v3/' + self.infuraApiKey;
 
+		self.endpoint = endpoint;
 		self.web3 = Web3(Web3.HTTPProvider(endpoint));
 		acct = self.web3.eth.account.privateKeyToAccount(self.privateKey);
 		self.web3.eth.default_account = acct.address;
 		self.address = acct.address;
 
+		# initialize gas block caches
+		self.currGasPriceSpeed = None;
+		self.web3.middleware_onion.add(middleware.time_based_cache_middleware)
+		self.web3.middleware_onion.add(middleware.latest_block_based_cache_middleware)
+		self.web3.middleware_onion.add(middleware.simple_cache_middleware)
+
+		# add support for PoA chains
+		self.web3.middleware_onion.inject(geth_poa_middleware, layer=0)
+
 		if self.verbose:
 			print("Initialized account", self.web3.eth.default_account);
 			print("Connected to web3 at", endpoint);
 
+		usingCustomConfig = (not customConfigFile is None);
+		customConfig = None;
+		if usingCustomConfig:
+
+			# load custom config file if it exists, quit if not
+			if not os.path.isfile(customConfigFile):
+				bal.ERROR("Custom config file" + customConfigFile + " not found!");
+				quit();
+			else:
+				with open(customConfigFile,'r') as f:
+					customConfig = json.load(f);
+			# print(json.dumps(customConfig, indent=4))
+
+			# ensure all required fields are in the customConfig
+			requiredFields = ["contracts", "networkParams"]
+			hasAllRequirements = True;
+			for req in requiredFields:
+				if not req in customConfig.keys():
+					hasAllRequirements = False;
+			if not hasAllRequirements:
+				bal.ERROR("Not all custom fields are in the custom config!");
+				print("You must include:");
+				for req in requiredFields:
+					print("\t"+req);
+				print();
+				quit();
+
+			# add network params for network
+			currNetworkParams = {
+				"id":				customConfig["networkParams"]["id"],
+				"blockExplorerUrl":	customConfig["networkParams"]["blockExplorerUrl"]
+			}
+
+			if "balFrontend" in customConfig["networkParams"].keys():
+				currNetworkParams["balFrontend"] = customConfig["networkParams"]["balFrontend"];
+			self.networkParams[self.network] = currNetworkParams;
+
 		for contractType in self.contractDirectories.keys():
 			subdir = self.contractDirectories[contractType]["directory"];
-			addressKey = self.contractDirectories[contractType]["addressKey"];
 
 			# get contract abi from deployment
 			abiPath = os.path.join('deployments', subdir , "abi", contractType + '.json');
 			try:
 				f = pkgutil.get_data(__name__, abiPath).decode();
 				currAbi = json.loads(f);
-
 				self.abis[contractType] = currAbi;
 			except BaseException as error:
 				self.ERROR('Error accessing file: {}'.format(abiPath))
 				self.ERROR('{}'.format(error))
 
 			# get deployment address for given network
-			deploymentPath = os.path.join('deployments', subdir, "output", self.network + '.json');
 			try:
-				f = pkgutil.get_data(__name__, deploymentPath).decode();
-				currData = json.loads(f);
-				currAddress = currData[addressKey];
+				if usingCustomConfig:
+					currAddress = customConfig["contracts"][contractType];
+				else:
+					deploymentPath = os.path.join('deployments', subdir, "output", self.network + '.json');
+					f = pkgutil.get_data(__name__, deploymentPath).decode();
+					currData = json.loads(f);
+					currAddress = currData[contractType];
 				self.deploymentAddresses[contractType] = currAddress;
 			except BaseException as error:
-				self.ERROR('{} not found for network {}'.format(contractType, self.network))
-				self.ERROR('{}'.format(error))
+				self.WARN('{} not found for network {}'.format(contractType, self.network))
+				self.WARN('{}'.format(error))
 
 		print("Available contracts on", self.network)
 		for element in self.deploymentAddresses.keys():
@@ -316,7 +385,7 @@ class balpy(object):
 				print(e);
 				print("Transaction not found yet, will check again in", delay, "seconds");
 				time.sleep(delay);
-		self.ERROR("Transaction not found in", maxRetries, "retries.");
+		self.ERROR("Transaction not found in" + str(maxRetries) + "retries.");
 		return(False);
 
 	# =====================
@@ -446,7 +515,7 @@ class balpy(object):
 				targetAllowance = Decimal(targetAllowance) * Decimal(10**decimals);
 			targetAllowance = int(targetAllowance);
 			print("Insufficient Allowance: Increasing to", targetAllowance);
-			txHash = self.erc20SignAndSendNewAllowance(tokenAddress, allowedAddress, targetAllowance, gasFactor, gasSpeed, nonceOverride=nonceOverride, isAsync=isAsync);
+			txHash = self.erc20SignAndSendNewAllowance(tokenAddress, allowedAddress, targetAllowance, gasFactor, gasSpeed, nonceOverride=nonceOverride, isAsync=isAsync, gasPriceGweiOverride=gasPriceGweiOverride);
 			return(txHash);
 		return(None);
 
@@ -487,23 +556,104 @@ class balpy(object):
 		return(True)
 
 	# =====================
-	# ====Etherscan Gas====
+	# ======Etherscan======
 	# =====================
-	def getGasPriceEtherscanGwei(self, speed):
-		dt = (time.time() - self.lastEtherscanCallTime);
-		if dt < 1.0/self.etherscanMaxRate:
-			time.sleep((1.0/self.etherscanMaxRate - dt) * 1.1);
+	def generateEtherscanApiUrl(self):
+		etherscanUrl = self.networkParams[self.network]["blockExplorerUrl"]
+		separator = ".";
+		if self.network in ["kovan", "rinkeby","goerli"]:
+			separator = "-";
+		urlFront = "https://api" + separator + etherscanUrl;
+		return(urlFront);
 
+	def callEtherscan(self, url, maxRetries=3, verbose=False):
+		urlFront = self.generateEtherscanApiUrl();
+		url = urlFront + url + self.etherscanApiKey;
+		if verbose:
+			print("Calling:", url);
+
+		count = 0;
+		while count < maxRetries:
+			try:
+				dt = (time.time() - self.lastEtherscanCallTime);
+				if dt < 1.0/self.etherscanMaxRate:
+					time.sleep((1.0/self.etherscanMaxRate - dt) * 1.1);
+
+				# faking a user-agent resolves the 403 (forbidden) errors on api-kovan.etherscan.io
+				headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
+				r = requests.get(url, headers=headers);
+				if verbose:
+					print("\t" + r)
+				self.lastEtherscanCallTime = time.time();
+				data = r.json();
+				if verbose:
+					print("\t" + data)
+				return(data);
+			except:
+				count += 1;
+				delaySec = 2;
+				if verbose:
+					self.WARN("Etherscan failed " + str(count) + " times. Retrying in " + str(delaySec) + " seconds...");
+				time.sleep(delaySec);
+		self.ERROR("Etherscan failed " + str(count) + " times.");
+		return(False);
+
+	def getGasPriceEtherscanGwei(self, speed, verbose=False):
 		if not speed in self.etherscanSpeedDict.keys():
 			self.ERROR("Speed entered is:" + speed);
-			print("\tSpeed must be 'slow', 'average', or 'fast'");
+			self.ERROR("Speed must be one of the following options:");
+			for s in self.etherscanSpeedDict.keys():
+				print("\t" + s);
 			return(False);
 
-		response = requests.get("https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=" + self.etherscanApiKey);
-		self.lastEtherscanCallTime = time.time();
-		return(response.json()["result"][self.etherscanSpeedDict[speed]]);
+		urlString = "/api?module=gastracker&action=gasoracle&apikey=";# + self.etherscanApiKey;
+		response = self.callEtherscan(urlString, verbose=verbose);
+		return(response["result"][self.etherscanSpeedDict[speed]]);
+
+	def getTransactionsByAddress(self, address, internal=False, startblock=0, verbose=False):
+		if verbose:
+			print("\tQuerying data after block", startblock);
+
+		internalString = "";
+		if internal:
+			internalString = "internal";
+
+		etherscanUrl = self.networkParams[self.network]["blockExplorerUrl"]
+		separator = ".";
+		if self.network in ["kovan", "rinkeby","goerli"]:
+			separator = "-";
+
+		url = [];
+		url.append("/api?module=account&action=txlist{}&address=".format(internalString));
+		url.append(address);
+		url.append("&startblock={}&endblock=99999999&sort=asc&apikey=".format(startblock));
+		urlString = "".join(url);
+		txns = self.callEtherscan(urlString, verbose=verbose);
+
+		if int(txns["status"]) == 0:
+			self.ERROR("Etherscan query failed. Please try again.");
+			return(False);
+		elif int(txns["status"]) == 1:
+			return(txns["result"]);
+
+	def isContractVerified(self, poolId, verbose=False):
+		address = self.balPooldIdToAddress(poolId);
+		url = "/api?module=contract&action=getabi&address={}&apikey=".format(address);
+		results = self.callEtherscan(url, verbose=verbose);
+		if verbose:
+			print(results);
+		isUnverified = (results["result"] == "Contract source code not verified");
+		return(not isUnverified);
 
 	def getGasPricePolygon(self, speed):
+		if speed in self.etherscanSpeedDict.keys():
+			etherscanGasSpeedNamesToPolygon = {
+				"slow":"safeLow",
+				"average":"standard",
+				"fast":"fast"
+			};
+			speed = etherscanGasSpeedNamesToPolygon[speed];
+
 		allowedSpeeds = ["safeLow","standard","fast","fastest"];
 		if speed not in allowedSpeeds:
 			self.ERROR("Speed entered is:" + speed);
@@ -517,10 +667,26 @@ class balpy(object):
 		return(prices[speed]);
 
 	def gasPriceGweiOverride(self):
-		return self.gweiPriceOverride if self.gweiPriceOverride else -1;
+			return self.gweiPriceOverride if self.gweiPriceOverride else -1;
 
 	def gasSpeed(self):
-		return self.etherscanSpeed if self.etherscanSpeed else "fast";
+  		return self.etherscanSpeed if self.etherscanSpeed else "fast";
+
+	def getGasPrice(self, speed):
+		allowedSpeeds = list(self.speedDict.keys());
+		if speed not in allowedSpeeds:
+			self.ERROR("Speed entered is:" + speed);
+			self.ERROR("Speed must be one of the following options:");
+			for s in allowedSpeeds:
+				print("\t" + s);
+			return(False);
+
+		if not speed == self.currGasPriceSpeed:
+			self.currGasPriceSpeed = speed;
+			self.web3.eth.set_gas_price_strategy(self.speedDict[speed]);
+
+		gasPrice = self.web3.eth.generateGasPrice() * 1e-9;
+		return(gasPrice)
 
 	def balSortTokens(self, tokensIn):
 		# tokens need to be sorted as lowercase, but if they're provided as checksum, then
@@ -639,14 +805,14 @@ class balpy(object):
 	def balCreateFnStablePoolFactory(self, poolData):
 		factory = self.balGetFactoryContract("StablePoolFactory");
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
-		swapFeePercentage = int(poolData["swapFeePercent"] * 1e16);
+		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
 
 		owner = self.balSetOwner(poolData);
 
 		createFunction = factory.functions.create(	poolData["name"],
 													poolData["symbol"],
 													checksumTokens,
-													poolData["amplificationParameter"],
+													int(poolData["amplificationParameter"]),
 													swapFeePercentage,
 													owner);
 		return(createFunction);
@@ -658,7 +824,7 @@ class balpy(object):
 		if not self.balWeightsEqualOne(poolData):
 			return(False);
 
-		swapFeePercentage = int(poolData["swapFeePercent"] * 1e16);
+		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
 		intWithDecimalsWeights = [int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18)) for t in tokens];
 		owner = self.balSetOwner(poolData);
 
@@ -686,21 +852,52 @@ class balpy(object):
 	def balCreateFnMetaStablePoolFactory(self, poolData):
 		factory = self.balGetFactoryContract("MetaStablePoolFactory");
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
-		swapFeePercentage = int(poolData["swapFeePercent"] * 1e16);
+		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
 		owner = self.balSetOwner(poolData);
 
 		rateProviders = [poolData["tokens"][token]["rateProvider"] for token in tokens]
-		priceRateCacheDurations = [poolData["tokens"][token]["priceRateCacheDuration"] for token in tokens]
+		priceRateCacheDurations = [int(poolData["tokens"][token]["priceRateCacheDuration"]) for token in tokens]
 
 		createFunction = factory.functions.create(	poolData["name"],
 													poolData["symbol"],
 													checksumTokens,
-													poolData["amplificationParameter"],
+													int(poolData["amplificationParameter"]),
 													rateProviders,
 													priceRateCacheDurations,
 													swapFeePercentage,
 													poolData["oracleEnabled"],
 													owner);
+		return(createFunction);
+
+	def balCreateFnInvestmentPoolFactory(self, poolData):
+		factory = self.balGetFactoryContract("InvestmentPoolFactory");
+		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
+		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
+		intWithDecimalsWeights = [int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18)) for t in tokens];
+		managementFeePercentage = int(Decimal(poolData["managementFeePercent"]) * Decimal(1e16));
+		# Deployed factory doesn't allow asset managers
+		# assetManagers = [0 for i in range(0,len(tokens))]
+		owner = self.balSetOwner(poolData);
+		if not owner == self.address:
+			self.WARN("!!! You are not the owner for your Investment Pool !!!")
+			self.WARN("You:\t\t" + self.address)
+			self.WARN("Pool Owner:\t" + owner)
+
+			print();
+			self.WARN("Only the pool owner can call permissioned functions, such as changing weights or the management fee.")
+			self.WARN(owner + " should either be you, or a multi-sig or other contract that you control and can call permissioned functions from.")
+			cancelTimeSec = 30;
+			self.WARN("If the owner mismatch is was unintentional, you have " + str(cancelTimeSec) + " seconds to cancel with Ctrl+C.")
+			time.sleep(cancelTimeSec);
+
+		createFunction = factory.functions.create(	poolData["name"],
+													poolData["symbol"],
+													checksumTokens,
+													intWithDecimalsWeights,
+													swapFeePercentage,
+													owner,
+													poolData["swapEnabledOnStart"],
+													managementFeePercentage);
 		return(createFunction);
 
 	def balCreatePoolInFactory(self, poolDescription, gasFactor, gasPriceSpeed, nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
@@ -720,6 +917,8 @@ class balpy(object):
 			createFunction = self.balCreateFnLBPoolFactory(poolDescription);
 		if poolFactoryName == "MetaStablePoolFactory":
 			createFunction = self.balCreateFnMetaStablePoolFactory(poolDescription);
+		if poolFactoryName == "InvestmentPoolFactory":
+			createFunction = self.balCreateFnInvestmentPoolFactory(poolDescription);
 		if createFunction is None:
 			print("No pool factory found with name:", poolFactoryName);
 			print("Currently supported pool types are:");
@@ -728,6 +927,7 @@ class balpy(object):
 			print("\tStablePool");
 			print("\tLiquidityBootstrappingPool");
 			print("\tMetaStablePool");
+			print("\tInvestmentPool");
 			return(False);
 
 		if not createFunction:
@@ -769,6 +969,39 @@ class balpy(object):
 		txHash = self.sendTx(tx);
 		return(txHash);
 
+	def balJoinPoolTokenInForExactBptOut(self, joinDescription, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		(sortedTokens, checksumTokens) = self.balSortTokens(list(joinDescription["tokens"].keys()));
+		amountsBySortedTokens = [joinDescription["tokens"][token]["amount"] for token in sortedTokens];
+		rawAmounts = self.balConvertTokensToWei(sortedTokens, amountsBySortedTokens);
+
+		index = -1;
+		counter = -1;
+		for amt in rawAmounts:
+			counter += 1;
+			if amt > 0:
+				if index == -1:
+					index = counter;
+				else:
+					self.ERROR("Multiple tokens have amounts for a single token join! Only one token can have a non-zero amount!");
+					return(False);
+		if index == -1:
+			self.ERROR("No tokens have amounts. You must have one token with a non-zero amount!");
+			return(False);
+
+		userDataEncoded = eth_abi.encode_abi(	['uint256', 'uint256', 'uint256'],
+												[self.JoinKind["TOKEN_IN_FOR_EXACT_BPT_OUT"], joinDescription["minBptOut"], index]);
+
+		joinPoolRequestTuple = (checksumTokens, rawAmounts, userDataEncoded.hex(), joinDescription["fromInternalBalance"]);
+		vault = self.web3.eth.contract(address=self.deploymentAddresses["Vault"], abi=self.abis["Vault"]);
+		joinPoolFunction = vault.functions.joinPool(joinDescription["poolId"],
+												self.web3.toChecksumAddress(self.web3.eth.default_account),
+												self.web3.toChecksumAddress(self.web3.eth.default_account),
+												joinPoolRequestTuple);
+		tx = self.buildTx(joinPoolFunction, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
+		print("Transaction Generated!");
+		txHash = self.sendTx(tx);
+		return(txHash);
+
 	def balRegisterPoolWithVault(self, poolDescription, poolId, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 		self.WARN("\"balRegisterPoolWithVault\" is deprecated. Please use \"balJoinPoolInit\".")
 		self.balJoinPoolInit(poolDescription, poolId, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride)
@@ -798,6 +1031,14 @@ class balpy(object):
 		vault = self.web3.eth.contract(address=self.deploymentAddresses["Vault"], abi=self.abis["Vault"]);
 		wethAddress = vault.functions.WETH().call();
 		return(wethAddress);
+
+	def balVaultGetPoolTokens(self, poolId):
+		vault = self.web3.eth.contract(address=self.deploymentAddresses["Vault"], abi=self.abis["Vault"]);
+		output = vault.functions.getPoolTokens(poolId).call();
+		tokens = output[0];
+		balances = output[1];
+		lastChangeBlock = output[2];
+		return (tokens, balances, lastChangeBlock);
 
 	def balVaultGetInternalBalance(self, tokens, address=None):
 		if address is None:
@@ -842,6 +1083,209 @@ class balpy(object):
 		manageUserBalanceFn = vault.functions.manageUserBalance(inputTupleList);
 		return(manageUserBalanceFn);
 
+	def balPoolGetAbi(self, poolType):
+		abiPath = os.path.join('abi/pools/'+ poolType + '.json');
+		f = pkgutil.get_data(__name__, abiPath).decode();
+		poolAbi = json.loads(f);
+		return(poolAbi);
+
+	def balPooldIdToAddress(self, poolId):
+		poolAddress = self.web3.toChecksumAddress(poolId[:42]);
+		return(poolAddress);
+
+	def balGetPoolCreationData(self, poolId, verbose=False):
+		address = self.balPooldIdToAddress(poolId);
+		txns = self.getTransactionsByAddress(address, internal=True, verbose=verbose);
+
+		poolTypeByContract = {};
+		for poolType in self.deploymentAddresses.keys():
+			deploymentAddress = self.deploymentAddresses[poolType].lower();
+			poolTypeByContract[deploymentAddress] = poolType;
+
+		poolFactoryType = None;
+		for txn in txns:
+			if txn["from"].lower() in poolTypeByContract.keys():
+				poolFactoryType = poolTypeByContract[txn["from"].lower()];
+				txHash = txn["hash"];
+				stamp = txn["timeStamp"];
+				break;
+		return(address, poolFactoryType, txHash, stamp);
+
+	def balGetPoolFactoryCreationTime(self, address):
+		txns = self.getTransactionsByAddress(address);
+		return(txns[0]["timeStamp"]);
+
+	def getInputData(self, txHash):
+		transaction = self.web3.eth.get_transaction(txHash);
+		return(transaction.input)
+
+	def balGeneratePoolCreationArguments(self, poolId, verbose=False):
+		if self.network in ["polygon", "arbitrum"]:
+			self.ERROR("Automated pool verification doesn't work on " + self.network + " yet. Please try the method outlined in the docs using Tenderly.");
+			return(False);
+
+		# query etherscan for internal transactions to find pool factory, pool creation time, and creation hash
+		(address, poolFactoryType, txHash, stampPool) = self.balGetPoolCreationData(poolId, verbose=verbose);
+
+		# get the input data used to generate the pool
+		inputData = self.getInputData(txHash);
+
+		# decode those ^ inputs according to the relevant pool factory ABI
+		poolFactoryAddress = self.deploymentAddresses[poolFactoryType];
+		poolFactoryAbi = self.abis[poolFactoryType];
+		poolFactoryContract = self.web3.eth.contract(address=poolFactoryAddress, abi=poolFactoryAbi);
+		decodedPoolData = poolFactoryContract.decode_function_input(inputData)[1];
+
+		# get pool factory creation time to calculate pauseWindowDuration
+		stampFactory = self.balGetPoolFactoryCreationTime(poolFactoryAddress);
+
+		# make sure arguments exist/are proper types to be encoded
+		if "weights" in decodedPoolData.keys():
+			for i in range(len(decodedPoolData["weights"])):
+				decodedPoolData["weights"][i] = int(decodedPoolData["weights"][i]);
+		if "priceRateCacheDuration" in decodedPoolData.keys():
+			for i in range(len(decodedPoolData["priceRateCacheDuration"])):
+				decodedPoolData["priceRateCacheDuration"][i] = int(decodedPoolData["priceRateCacheDuration"][i]);
+		if poolFactoryType == "InvestmentPoolFactory" and not "assetManagers" in decodedPoolData.keys():
+			decodedPoolData["assetManagers"] = [];
+			for i in range(len(decodedPoolData["weights"])):
+				decodedPoolData["assetManagers"].append(self.ZERO_ADDRESS);
+
+		# times for pause/buffer
+		daysToSec = 24*60*60; # hr * min * sec
+		pauseDays = 90;
+		bufferPeriodDays = 30;
+
+		# calculate proper durations
+		pauseWindowDurationSec = max( (pauseDays*daysToSec) - (int(stampPool) - int(stampFactory)), 0);
+		bufferPeriodDurationSec = bufferPeriodDays * daysToSec;
+		if pauseWindowDurationSec == 0:
+			bufferPeriodDurationSec = 0;
+
+		poolType = poolFactoryType.replace("Factory","");
+		poolAbi = self.balPoolGetAbi(poolType);
+
+		structInConstructor = False;
+		if poolType == "WeightedPool":
+			args = [self.deploymentAddresses["Vault"],
+					decodedPoolData["name"],
+					decodedPoolData["symbol"],
+					decodedPoolData["tokens"],
+					decodedPoolData["weights"],
+					int(decodedPoolData["swapFeePercentage"]),
+					int(pauseWindowDurationSec),
+					int(bufferPeriodDurationSec),
+					decodedPoolData["owner"]];
+		elif poolType == "WeightedPool2Tokens":
+			args = [self.deploymentAddresses["Vault"],
+					decodedPoolData["name"],
+					decodedPoolData["symbol"],
+					decodedPoolData["tokens"][0],
+					decodedPoolData["tokens"][1],
+					int(decodedPoolData["weights"][0]),
+					int(decodedPoolData["weights"][1]),
+					int(decodedPoolData["swapFeePercentage"]),
+					int(pauseWindowDurationSec),
+					int(bufferPeriodDurationSec),
+					decodedPoolData["oracleEnabled"],
+					decodedPoolData["owner"]];
+			structInConstructor = True;
+		elif poolType == "StablePool":
+			args = [self.deploymentAddresses["Vault"],
+					decodedPoolData["name"],
+					decodedPoolData["symbol"],
+					decodedPoolData["tokens"],
+					int(decodedPoolData["amplificationParameter"]),
+					int(decodedPoolData["swapFeePercentage"]),
+					int(pauseWindowDurationSec),
+					int(bufferPeriodDurationSec),
+					decodedPoolData["owner"]];
+		elif poolType == "MetaStablePool":
+			args = [self.deploymentAddresses["Vault"],
+					decodedPoolData["name"],
+					decodedPoolData["symbol"],
+					decodedPoolData["tokens"],
+					decodedPoolData["rateProviders"],
+					decodedPoolData["priceRateCacheDuration"],
+					int(decodedPoolData["amplificationParameter"]),
+					int(decodedPoolData["swapFeePercentage"]),
+					int(pauseWindowDurationSec),
+					int(bufferPeriodDurationSec),
+					decodedPoolData["oracleEnabled"],
+					decodedPoolData["owner"]];
+			structInConstructor = True;
+		elif poolType == "LiquidityBootstrappingPool":
+			args = [self.deploymentAddresses["Vault"],
+					decodedPoolData["name"],
+					decodedPoolData["symbol"],
+					decodedPoolData["tokens"],
+					decodedPoolData["weights"],
+					int(decodedPoolData["swapFeePercentage"]),
+					int(pauseWindowDurationSec),
+					int(bufferPeriodDurationSec),
+					decodedPoolData["owner"],
+					decodedPoolData["swapEnabledOnStart"]];
+		elif poolType == "InvestmentPool":
+			args = [self.deploymentAddresses["Vault"],
+					decodedPoolData["name"],
+					decodedPoolData["symbol"],
+					decodedPoolData["tokens"],
+					decodedPoolData["weights"],
+					decodedPoolData["assetManagers"],
+					int(decodedPoolData["swapFeePercentage"]),
+					int(pauseWindowDurationSec),
+					int(bufferPeriodDurationSec),
+					decodedPoolData["owner"],
+					decodedPoolData["swapEnabledOnStart"],
+					int(decodedPoolData["managementSwapFeePercentage"])];
+			structInConstructor = True;
+		else:
+			self.ERROR("PoolType", poolType, "not found!")
+			return(False);
+
+		# encode constructor data
+		poolContract = self.web3.eth.contract(address=address, abi=poolAbi);
+		if structInConstructor:
+			args = (tuple(args),)
+		data = poolContract._encode_constructor_data(args=args);
+		encodedData = data[2:]; #cut off the 0x
+
+		command = "yarn hardhat verify-contract --id {} --name {} --address {} --network {} --key {} --args {}"
+		output = command.format(self.contractDirectories[poolFactoryType]["directory"],
+								poolType,
+								address,
+								self.network,
+								self.etherscanApiKey,
+								encodedData)
+		return(output);
+
+	def balStablePoolGetAmplificationParameter(self, poolId):
+		poolAddress = self.web3.toChecksumAddress(poolId[:42]);
+		pool = self.web3.eth.contract(address=poolAddress, abi=self.balPoolGetAbi("StablePool"));
+		(value, isUpdating, precision) = pool.functions.getAmplificationParameter().call();
+		return(value, isUpdating, precision); 
+	
+	def balStablePoolStartAmplificationParameterUpdate(self, poolId, rawEndValue, endTime, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		poolAddress = self.web3.toChecksumAddress(poolId[:42]);
+		pool = self.web3.eth.contract(address=poolAddress, abi=self.balPoolGetAbi("StablePool"));
+		 
+		owner = pool.functions.getOwner().call();
+		if not self.address == owner:
+			self.ERROR("You are not the pool owner; this transaction will fail.");
+			return(False);
+
+		fn = pool.functions.startAmplificationParameterUpdate(rawEndValue, endTime);
+		tx = self.buildTx(fn, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
+		txHash = self.sendTx(tx, isAsync);
+		return(txHash);
+
+	# https://dev.balancer.fi/references/contracts/apis/pools/weightedpool2tokens#gettimeweightedaverage
+	def balOraclePoolGetTimeWeightedAverage(self, poolId, queries):
+		poolAddress = self.web3.toChecksumAddress(poolId[:42]);
+		pool = self.web3.eth.contract(address=poolAddress, abi=self.balPoolGetAbi("WeightedPool2Tokens"));
+		results = pool.functions.getTimeWeightedAverage(queries).call();
+		return(results);
+
 	def balSwapIsFlashSwap(self, swapDescription):
 		for amount in swapDescription["limits"]:
 			if not float(amount) == 0.0:
@@ -869,11 +1313,54 @@ class balpy(object):
 		# 	userData = "something else";
 		return(userData);
 
+	def balDoSwap(self, swapDescription, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		swapFn = self.balCreateFnSwap(swapDescription);
+		tx = self.buildTx(swapFn, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
+		txHash = self.sendTx(tx, isAsync);
+		return(txHash);
+
 	def balDoBatchSwap(self, swapDescription, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 		batchSwapFn = self.balCreateFnBatchSwap(swapDescription);
 		tx = self.buildTx(batchSwapFn, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
 		txHash = self.sendTx(tx, isAsync);
 		return(txHash);
+
+	def balCreateFnSwap(self, swapDescription):
+		kind = int(swapDescription["kind"])
+		limitedToken = None;
+		amountToken = None;
+		if kind == 0: #GIVEN_IN
+			amountToken = swapDescription["assetIn"];
+			limitedToken = swapDescription["assetOut"];
+		elif kind == 1: #GIVEN_OUT
+			amountToken = swapDescription["assetOut"];
+			limitedToken = swapDescription["assetIn"];
+
+		amountWei = int(Decimal(swapDescription["amount"]) * 10 ** Decimal(self.erc20GetDecimals(amountToken)));
+		limitWei = int(Decimal(swapDescription["limit"]) * 10 ** Decimal(self.erc20GetDecimals(limitedToken)));
+
+		swapStruct = (
+			swapDescription["poolId"],
+			kind,
+			self.web3.toChecksumAddress(swapDescription["assetIn"]),
+			self.web3.toChecksumAddress(swapDescription["assetOut"]),
+			amountWei,
+			self.balSwapGetUserData(None)
+		)
+		fundStruct = (
+			self.web3.toChecksumAddress(swapDescription["fund"]["sender"]),
+			swapDescription["fund"]["fromInternalBalance"],
+			self.web3.toChecksumAddress(swapDescription["fund"]["recipient"]),
+			swapDescription["fund"]["toInternalBalance"]
+		)
+		vault = self.web3.eth.contract(address=self.deploymentAddresses["Vault"], abi=self.abis["Vault"]);
+		singleSwapFunction = vault.functions.swap(
+			swapStruct,
+			fundStruct,
+			limitWei,
+			int(swapDescription["deadline"])
+		)
+		return(singleSwapFunction);
 
 	def balCreateFnBatchSwap(self, swapDescription):
 		(sortedTokens, originalIdxToSortedIdx, sortedIdxToOriginalIdx) = self.balReorderTokenDicts(swapDescription["assets"]);
@@ -925,4 +1412,222 @@ class balpy(object):
 		else:
 			return("")
 
+	def multiCallLoadContract(self):
+		abiPath = os.path.join('abi/multiCall.json');
+		f = pkgutil.get_data(__name__, abiPath).decode();
+		abi = json.loads(f);
+		if self.network == "arbitrum":
+			multicallAddress = "0x269ff446d9892c9e19082564df3f5e8741e190a1";
+		else:
+			multicallAddress = MULTICALL_ADDRESSES[self.networkParams[self.network]["id"]];
+		multiCall = self.web3.eth.contract(self.web3.toChecksumAddress(multicallAddress), abi=abi);
+		return(multiCall);
 
+	def multiCallErc20BatchDecimals(self, tokens):
+		multiCall = self.multiCallLoadContract();
+
+		payload = [];
+		for token in tokens:
+			currTokenContract = self.erc20GetContract(token);
+			callData = currTokenContract.encodeABI(fn_name='decimals');
+			chkToken = self.web3.toChecksumAddress(token);
+			payload.append((chkToken, callData));
+
+		# make the actual call to MultiCall
+		outputData = multiCall.functions.aggregate(payload).call();
+		tokensToDecimals = {};
+
+		fn = currTokenContract.get_function_by_name(fn_name='decimals');
+		outputAbi = get_abi_output_types(fn.abi);
+
+		for token, odBytes in zip(tokens, outputData[1]):
+			decodedOutputData = self.web3.codec.decode_abi(outputAbi, odBytes);
+			decimals = decodedOutputData[0];
+			tokensToDecimals[token] = decimals;
+			self.decimals[token] = decimals;
+
+		return(tokensToDecimals);
+
+	# multiprocessing helper
+	def chunks(self, a, n):
+		k, m = divmod(len(a), n)
+		return (a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n))
+
+	def getOnchainData(self, pools, procs=None):
+		# load the multicall contract
+		multiCall = self.multiCallLoadContract();
+
+		# load the vault contract
+		vault = self.web3.eth.contract(address=self.deploymentAddresses["Vault"], abi=self.abis["Vault"]);
+		target = self.deploymentAddresses["Vault"];
+
+		poolAbis = {};
+		for poolType in pools.keys():
+			abiPath = os.path.join('abi/pools/'+poolType+'Pool.json');
+			f = pkgutil.get_data(__name__, abiPath).decode();
+			poolAbi = json.loads(f);
+			poolAbis[poolType] = poolAbi;
+
+		payload = [];
+		pidAndFns = [];
+		outputAbis = {};
+
+		poolToType = {};
+		for poolType in pools.keys():
+			poolIds = pools[poolType];
+			poolAbi = poolAbis[poolType];
+			# construct all the calls in format (VaultAddress, encodedCallData)
+			for poolId in poolIds:
+				poolToType[poolId] = poolType;
+				poolAddress = self.web3.toChecksumAddress(poolId[:42]);
+				currPool = self.web3.eth.contract(address=poolAddress, abi=poolAbi);
+
+				# === all pools need tokens and swap fee ===
+				# get pool tokens
+				callData = vault.encodeABI(fn_name='getPoolTokens', args=[poolId]);
+				payload.append((target, callData));
+				pidAndFns.append((poolId, 'getPoolTokens'));
+				if not 'getPoolTokens' in outputAbis.keys():
+					fn = vault.get_function_by_name(fn_name='getPoolTokens');
+					outputAbis['getPoolTokens'] = get_abi_output_types(fn.abi);
+				# get swap fee
+				callData = currPool.encodeABI(fn_name='getSwapFeePercentage');
+				payload.append((poolAddress, callData));
+				pidAndFns.append((poolId, 'getSwapFeePercentage'));
+				if not 'getSwapFeePercentage' in outputAbis.keys():
+					fn = currPool.get_function_by_name(fn_name='getSwapFeePercentage');
+					outputAbis['getSwapFeePercentage'] = get_abi_output_types(fn.abi);
+				# get paused state
+				callData = currPool.encodeABI(fn_name='getPausedState');
+				payload.append((poolAddress, callData));
+				pidAndFns.append((poolId, 'getPausedState'));
+				if not 'getPausedState' in outputAbis.keys():
+					fn = currPool.get_function_by_name(fn_name='getPausedState');
+					outputAbis['getPausedState'] = get_abi_output_types(fn.abi);
+
+				# === using weighted math ===
+				if poolType in ["Weighted", "LiquidityBootstrapping", "Investment"]:
+					callData = currPool.encodeABI(fn_name='getNormalizedWeights');
+					payload.append((poolAddress, callData));
+					pidAndFns.append((poolId, 'getNormalizedWeights'));
+					if not 'getNormalizedWeights' in outputAbis.keys():
+						fn = currPool.get_function_by_name(fn_name='getNormalizedWeights');
+						outputAbis['getNormalizedWeights'] = get_abi_output_types(fn.abi);
+
+				# === using stable math ===
+				if poolType in ["Stable", "MetaStable"]:
+					callData = currPool.encodeABI(fn_name='getAmplificationParameter');
+					payload.append((poolAddress, callData));
+					pidAndFns.append((poolId, 'getAmplificationParameter'));
+					if not 'getAmplificationParameter' in outputAbis.keys():
+						fn = currPool.get_function_by_name(fn_name='getAmplificationParameter');
+						outputAbis['getAmplificationParameter'] = get_abi_output_types(fn.abi);
+
+				# === have pausable swaps by pool owner ===
+				if poolType in [ "LiquidityBootstrapping", "Investment"]:
+					callData = currPool.encodeABI(fn_name='getSwapEnabled');
+					payload.append((poolAddress, callData));
+					pidAndFns.append((poolId, 'getSwapEnabled'));
+					if not 'getSwapEnabled' in outputAbis.keys():
+						fn = currPool.get_function_by_name(fn_name='getSwapEnabled');
+						outputAbis['getSwapEnabled'] = get_abi_output_types(fn.abi);
+
+		# make the actual call to MultiCall
+		outputData = multiCall.functions.aggregate(payload).call();
+
+		chainDataOut = {};
+		chainDataBookkeeping = {};
+		decodedOutputDataBlocks = [];
+
+		if procs is None:
+			decodedOutputDataBlocks = [self.web3.codec.decode_abi(outputAbis[pidAndFn[1]], odBytes) for odBytes, pidAndFn in zip(outputData[1], pidAndFns)]
+		else:
+			if procs == 0:
+				procs = multiprocessing.cpu_count();
+
+			zippedData = list(zip(outputData[1], pidAndFns));
+			inputDataChunks = list(self.chunks(zippedData, procs));
+
+			manager = multiprocessing.Manager()
+			return_dict = manager.dict()
+			jobs = [];
+
+			for i in range(0, procs):
+				process = multiprocessing.Process(	target=processData,
+													args=(i, self.endpoint, inputDataChunks[i], outputAbis, return_dict))
+				jobs.append(process)
+			# Start the processes
+			for j in jobs:
+				j.start()
+			# Ensure all of the processes have finished
+			for j in jobs:
+				j.join()
+			sortedKeys = list(return_dict.keys());
+			sortedKeys.sort();
+			for i in sortedKeys:
+				decodedOutputDataBlocks.extend(return_dict[i]);
+
+		for decodedOutputData, odBytes, pidAndFn in zip(decodedOutputDataBlocks,outputData[1], pidAndFns):
+			poolId = pidAndFn[0];
+			decoder = pidAndFn[1];
+			if not poolId in chainDataOut.keys():
+				chainDataOut[poolId] = {"poolType":poolToType[poolId]};
+				chainDataBookkeeping[poolId] = {};
+
+			if decoder == "getPoolTokens":
+				addresses = list(decodedOutputData[0]);
+				balances = 	list(decodedOutputData[1]);
+				lastChangeBlock = decodedOutputData[2];
+
+				chainDataOut[poolId]["lastChangeBlock"] = lastChangeBlock;
+				chainDataBookkeeping[poolId]["orderedAddresses"] = addresses;
+
+				chainDataOut[poolId]["tokens"] = {};
+				for address, balance in zip(addresses, balances):
+					chainDataOut[poolId]["tokens"][address] = {"rawBalance":str(balance)};
+
+			elif decoder == "getNormalizedWeights":
+				normalizedWeights = list(decodedOutputData[0]);
+				addresses = chainDataBookkeeping[poolId]["orderedAddresses"];
+				for address, normalizedWeight in zip(addresses, normalizedWeights):
+					weight = Decimal(str(normalizedWeight)) * Decimal(str(1e-18));
+					chainDataOut[poolId]["tokens"][address]["weight"] = str(weight);
+
+			elif decoder == "getSwapFeePercentage":
+				swapFee = Decimal(decodedOutputData[0]) * Decimal(str(1e-18));
+				chainDataOut[poolId]["swapFee"] = str(swapFee);
+
+			elif decoder == "getAmplificationParameter":
+				rawAmp  = Decimal(decodedOutputData[0]);
+				scaling = Decimal(decodedOutputData[2]);
+				chainDataOut[poolId]["amp"] = str(rawAmp/scaling);
+
+			elif decoder == "getSwapEnabled":
+				chainDataOut[poolId]["swapEnabled"] = decodedOutputData[0];
+
+			elif decoder == "getPausedState":
+				chainDataOut[poolId]["pausedState"] = decodedOutputData[0];
+
+		#find tokens for which decimals have not been cached
+		tokens = set();
+		for pool in chainDataOut.keys():
+			for token in chainDataOut[pool]["tokens"].keys():
+				tokens.add(token);
+		haveDecimalsFor = set(self.decimals.keys());
+
+		# set subtraction (A - B) gives "What is in A that isn't in B?"
+		needDecimalsFor = tokens - haveDecimalsFor;
+
+		#if there are any, query them onchain using multicall
+		if len(needDecimalsFor) > 0:
+			print("New tokens found. Caching decimals for", len(needDecimalsFor), "tokens...")
+			self.multiCallErc20BatchDecimals(needDecimalsFor);
+
+		# update rawBalances to have decimal adjusted values
+		for pool in chainDataOut.keys():
+			for token in chainDataOut[pool]["tokens"].keys():
+				rawBalance = chainDataOut[pool]["tokens"][token]["rawBalance"];
+				decimals = self.erc20GetDecimals(token);
+				chainDataOut[pool]["tokens"][token]["balance"] = str(Decimal(rawBalance) * Decimal(10**(-decimals)));
+
+		return(chainDataOut);

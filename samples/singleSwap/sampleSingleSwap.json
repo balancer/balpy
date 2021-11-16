@@ -1,0 +1,18 @@
+{
+    "network": "kovan",
+    "swap":{
+      "kind": "0", 
+      "amount": "1",
+      "limit": "4000",
+      "poolId": "0x61d5dc44849c9c87b0856a2a311536205c96c7fd000200000000000000000000",
+      "assetIn": "0xdFCeA9088c8A88A76FF74892C1457C17dfeef9C1",
+      "assetOut": "0x41286Bb1D3E870f3F750eB7E1C25d7E48c8A1Ac7",
+      "fund": {
+        "sender": "0x7a73a786d16243680B3253a35392860eAE87d071",
+        "recipient": "0x7a73a786d16243680B3253a35392860eAE87d071",
+        "fromInternalBalance": false,
+        "toInternalBalance": false
+      },
+      "deadline": "999999999999999999"
+    }
+}

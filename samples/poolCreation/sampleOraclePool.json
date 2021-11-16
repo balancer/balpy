@@ -3,19 +3,19 @@
     "name": "Python Test Oracle Pool",
     "symbol": "PTOP",
     "poolType": "WeightedPool2Tokens",
-    "swapFeePercent": 3.0,
+    "swapFeePercent": "3.0",
     "fromInternalBalance": false,
     "oracleEnabled": true,
     "owner": "0x0000000000000000000000000000000000000000",
     "tokens": {
         "0xAf9ac3235be96eD496db7969f60D354fe5e426B0": {
             "weight": "0.7",
-            "initialBalance": 10.5,
+            "initialBalance": "10.5",
             "allowance": -1
         },
         "0x22ee6c3B011fACC530dd01fe94C58919344d6Db5": {
             "weight": "0.3",
-            "initialBalance": 5500,
+            "initialBalance": "5500",
             "allowance": -1
         }
     }

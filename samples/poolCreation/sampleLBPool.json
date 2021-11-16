@@ -3,7 +3,7 @@
     "name": "Python Test LBP",
     "symbol": "LBP 123",
     "poolType": "LiquidityBootstrappingPool",
-    "swapFeePercent": 0.1,
+    "swapFeePercent": "0.1",
     "fromInternalBalance": false,
     "swapEnabledOnStart": false,
     "owner": "0x975EefE53305c0c5480aeC00cea22e8b36250C05",
