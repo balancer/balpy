@@ -2,6 +2,7 @@ import balpy
 import sys
 import os
 import json
+import jstyleson
 
 import webbrowser
 
@@ -17,13 +18,15 @@ def main():
 		quit();
 
 	with open(pathToPool) as f:
-		pool = json.load(f)
-
-	gasFactor = 1.05;
-	gasSpeed = "fast";
-	gasPriceGweiOverride = -1; # -1 uses etherscan price at speed for gasSpeed, all other values will override
+		pool = jstyleson.load(f)
 
 	bal = balpy.balpy.balpy(pool["network"]);
+	gasFactor = 1.05;
+	gasSpeed = pool["gasSpeed"];
+	gasPriceGweiOverride = pool["gasPriceOverride"];
+	if gasPriceGweiOverride == "":
+		gasPriceGweiOverride = -1;
+	gasPriceGweiOverride = float(gasPriceGweiOverride);
 
 	print();
 	print("==============================================================")
@@ -82,17 +85,17 @@ def main():
 		print("Joining pool failed! Are you the owner?");
 
 	print();
-	print("============================================================")
-	print("=============== Step 5: Verify Pool Contract ===============")
-	print("============================================================")
+	print("==================================================================")
+	print("================== Step 5: Verify Pool Contract ==================")
+	print("==================================================================")
 	print();
 
 	command = bal.balGeneratePoolCreationArguments("0x" + poolId);
-	print()
 	print(command)
 	print()
 	print("If you need more complete instructions on what to do with this command, go to:");
 	print("\thttps://dev.balancer.fi/resources/pools/verification");
+	print()
 
 if __name__ == '__main__':
 	main();
