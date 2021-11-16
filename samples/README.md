@@ -20,6 +20,10 @@ You must set three environment variables in order to use the balpy module
 - Go to poolCreation/ directory
 - Edit your desired pool description json
 - python3 poolCreationSample.py sample{Weighted, Oracle, Stable}Pool.json
+- You can set the gas price manually by setting the BALPY_GWEI_PRICE environment variable
+  If this is not set, it will use the "fast" Etherscan price by default.
+- If you want to use the Etherscan "slow" or "average" prices, you can set the
+  BALPY_ETHERSCAN_SPEED environment variable to one of those values
 
 ### Swaps
 - Go to batchSwaps/ directory

@@ -20,8 +20,6 @@ def main():
 		pool = json.load(f)
 
 	gasFactor = 1.05;
-	gasSpeed = "fast";
-	gasPriceGweiOverride = -1; # -1 uses etherscan price at speed for gasSpeed, all other values will override
 
 	bal = balpy.balpy.balpy(pool["network"]);
 
@@ -47,7 +45,7 @@ def main():
 	(tokensSorted, allowancesSorted) = bal.erc20GetTargetAllowancesFromPoolData(pool);
 	initialBalancesSorted = [pool["tokens"][token]["initialBalance"] for token in tokensSorted];
 	# Async: Do [Approve]*N then [Wait]*N instead of [Approve, Wait]*N
-	bal.erc20AsyncEnforceSufficientVaultAllowances(tokensSorted, allowancesSorted, initialBalancesSorted, gasFactor, gasSpeed, gasPriceGweiOverride=gasPriceGweiOverride);
+	bal.erc20AsyncEnforceSufficientVaultAllowances(tokensSorted, allowancesSorted, initialBalancesSorted, gasFactor, bal.gasSpeed(), gasPriceGweiOverride=bal.gasPriceGweiOverride());
 
 	print();
 	print("==============================================================")

@@ -33,6 +33,8 @@ class balpy(object):
 	envVarInfura = 		"KEY_API_INFURA";
 	envVarPrivate = 	"KEY_PRIVATE";
 	envVarCustomRPC = 	"BALPY_CUSTOM_RPC";
+	envVarGweiPriceOverride = "BALPY_GWEI_PRICE";
+	envVarEtherscanSpeed = "BALPY_ETHERSCAN_SPEED";
 	
 	# Etherscan API call management	
 	lastEtherscanCallTime = 0;
@@ -135,6 +137,8 @@ class balpy(object):
 		self.customRPC = 			os.environ.get(self.envVarCustomRPC);
 		self.etherscanApiKey = 		os.environ.get(self.envVarEtherscan);
 		self.privateKey =  			os.environ.get(self.envVarPrivate);
+		self.gweiPriceOverride =  			os.environ.get(self.envVarGweiPriceOverride);
+		self.etherscanSpeed =  			os.environ.get(self.envVarEtherscanSpeed);
 
 		if self.infuraApiKey is None and self.customRPC is None:
 			self.ERROR("You need to add your KEY_API_INFURA or BALPY_CUSTOM_RPC environment variables\n");
@@ -511,6 +515,12 @@ class balpy(object):
 		r = requests.get("https://gasstation-mainnet.matic.network/")
 		prices = r.json();
 		return(prices[speed]);
+
+	def gasPriceGweiOverride(self):
+		return self.gweiPriceOverride if self.gweiPriceOverride else -1;
+
+	def gasSpeed(self):
+		return self.etherscanSpeed if self.etherscanSpeed else "fast";
 
 	def balSortTokens(self, tokensIn):
 		# tokens need to be sorted as lowercase, but if they're provided as checksum, then
