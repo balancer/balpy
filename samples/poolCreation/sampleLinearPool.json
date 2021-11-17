@@ -1,9 +1,21 @@
 {
+    /*
+    It is highly recommended that you make a copy of this file before running the script!
+    Once you run the script with a given file, these comments will disappear since to the
+    file will be saved with the poolId encoded in it. The pool generation script can handle
+    reading json files with comments in them, but it cannot recreate them.
+    */
+    
+    // Network and Gas Settings
     "network": "kovan",
-    "gasSpeed": "average",
-    "gasPriceOverride": "",
+    "gasSpeed":"average", // this can be {slow, average, fast}
+    "gasPriceOverride":"", // setting this to any number will override the gasSpeed
+
+    // Pool Name & Token Symbol
     "name": "Python Test Linear Pool",
     "symbol": "PTLP",
+
+    // Pool Configuration
     "poolType": "LinearPool",
     "swapFeePercent": "0.0005",
     "fromInternalBalance": false,
