@@ -1,0 +1,38 @@
+{
+    /*
+    It is highly recommended that you make a copy of this file before running the script!
+    Once you run the script with a given file, these comments will disappear since to the
+    file will be saved with the poolId encoded in it. The pool generation script can handle
+    reading json files with comments in them, but it cannot recreate them.
+    */
+
+    // Network and Gas Settings
+    "network": "kovan",
+    "gasSpeed":"average", // this can be {slow, average, fast}
+    "gasPriceOverride":"", // setting this to any number will override the gasSpeed
+
+    // Pool Name & Token Symbol
+    "name": "Python Test StablePhantom Pool",
+    "symbol": "PTSPP",
+
+    // Pool Configuration
+    "poolType": "StablePhantomPool",
+    "swapFeePercent": "1.0",
+    "fromInternalBalance": false,
+    "amplificationParameter": "100",
+    "owner": "0x0000000000000000000000000000000000000000",
+    "tokens": {
+        "0xc2569dd7d0fd715B054fBf16E75B001E5c0C1115": {
+            "initialBalance": "10000",
+            "allowance": -1,
+            "rateProvider": "0xcd32a460b6fecd053582e43b07ed6e2c04e15369",
+            "tokenRateCacheDuration": "1000"
+        },
+        "0x04DF6e4121c27713ED22341E7c7Df330F56f289B": {
+            "initialBalance": "10000",
+            "allowance": -1,
+            "rateProvider": "0xcd32a460b6fecd053582e43b07ed6e2c04e15369",
+            "tokenRateCacheDuration": "1000"
+        }
+    }
+}

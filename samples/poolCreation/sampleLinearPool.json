@@ -1,0 +1,26 @@
+{
+    "network": "kovan",
+    "gasSpeed": "average",
+    "gasPriceOverride": "",
+    "name": "Python Test Linear Pool",
+    "symbol": "PTLP",
+    "poolType": "LinearPool",
+    "swapFeePercent": "0.0005",
+    "fromInternalBalance": false,
+    "owner": "0x0000000000000000000000000000000000000000",
+    "lowerTarget": "1900000000000000000000000",
+    "upperTarget": "2100000000000000000000000",
+    "tokens": {
+        "0xff795577d9ac8bd7d90ee22b6c1703490b6512fd": {
+            "initialBalance": "10",
+            "allowance": -1
+        },
+        "0x4811a7bb9061a46753486e5e84b3cd3d668fb596": {
+            "initialBalance": "8",
+            "allowance": -1,
+            "rateProvider": "0x26575a44755e0aaa969fdda1e4291df22c5624ea",
+            "tokenRateCacheDuration": "600"
+        }
+    },
+    "poolId": "886a3ec7bcc508b8795990b60fa21f85f9db79480000000000000000000003d2"
+}
