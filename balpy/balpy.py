@@ -82,6 +82,9 @@ class balpy(object):
 							"Vault": {
 								"directory":"20210418-vault"
 							},
+							"BalancerHelpers": {
+								"directory":"20210418-vault"
+							},
 							"WeightedPoolFactory": {
 								"directory":"20210418-weighted-pool"
 							},
@@ -102,6 +105,12 @@ class balpy(object):
 							},
 							"Authorizer": {
 								"directory":"20210418-authorizer"
+							},
+							"StablePhantomPoolFactory": {
+								"directory":"????-linear-phantom-stable-pools"
+							},
+							"LinearPoolFactory": {
+								"directory":"????-linear-phantom-stable-pools"
 							}
 						};
 
@@ -576,16 +585,17 @@ class balpy(object):
 					time.sleep((1.0/self.etherscanMaxRate - dt) * 1.1);
 
 				# faking a user-agent resolves the 403 (forbidden) errors on api-kovan.etherscan.io
-				headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
+				headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36', "Upgrade-Insecure-Requests": "1","DNT": "1","Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8","Accept-Language": "en-US,en;q=0.5","Accept-Encoding": "gzip, deflate"};
 				r = requests.get(url, headers=headers);
 				if verbose:
-					print("\t" + r)
+					print("\t", r);
 				self.lastEtherscanCallTime = time.time();
 				data = r.json();
 				if verbose:
-					print("\t" + data)
+					print("\t", data);
 				return(data);
-			except:
+			except Exception as e:
+				print("Exception:", e);
 				count += 1;
 				delaySec = 2;
 				if verbose:
@@ -631,6 +641,17 @@ class balpy(object):
 			return(False);
 		elif int(txns["status"]) == 1:
 			return(txns["result"]);
+
+	def getTransactionByHash(self, txHash, verbose=False):
+		urlString = "/api?module=proxy&action=eth_getTransactionByHash&txhash={}&apikey=".format(txHash);
+		txns = self.callEtherscan(urlString, verbose=verbose);
+
+		if verbose:
+			print(txns)
+
+		if txns == False:
+			return(False);
+		return(txns);
 
 	def isContractVerified(self, poolId, verbose=False):
 		address = self.balPooldIdToAddress(poolId);
@@ -845,7 +866,7 @@ class balpy(object):
 		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
 		owner = self.balSetOwner(poolData);
 
-		rateProviders = [poolData["tokens"][token]["rateProvider"] for token in tokens]
+		rateProviders = [self.web3.toChecksumAddress(poolData["tokens"][token]["rateProvider"]) for token in tokens]
 		priceRateCacheDurations = [int(poolData["tokens"][token]["priceRateCacheDuration"]) for token in tokens]
 
 		createFunction = factory.functions.create(	poolData["name"],
@@ -890,6 +911,69 @@ class balpy(object):
 													managementFeePercentage);
 		return(createFunction);
 
+	def balCreateFnStablePhantomPoolFactory(self, poolData):
+		factory = self.balGetFactoryContract("StablePhantomPoolFactory");
+		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
+		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
+		owner = self.balSetOwner(poolData);
+
+		rateProviders = [self.web3.toChecksumAddress(poolData["tokens"][token]["rateProvider"]) for token in tokens]
+		tokenRateCacheDurations = [int(poolData["tokens"][token]["tokenRateCacheDuration"]) for token in tokens]
+
+		print(poolData["name"])
+		print(poolData["symbol"])
+		print(checksumTokens)
+		print(int(poolData["amplificationParameter"]))
+		print(rateProviders)
+		print(tokenRateCacheDurations)
+		print(swapFeePercentage)
+		print(owner)
+
+		createFunction = factory.functions.create(	poolData["name"],
+													poolData["symbol"],
+													checksumTokens,
+													int(poolData["amplificationParameter"]),
+													rateProviders,
+													tokenRateCacheDurations,
+													swapFeePercentage,
+													owner);
+		return(createFunction);
+
+	def balCreateFnLinearPoolFactory(self, poolData):
+		factory = self.balGetFactoryContract("LinearPoolFactory");
+		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
+		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
+		owner = self.balSetOwner(poolData);
+
+		mainToken = None;
+		wrappedToken = None;
+		for token in poolData["tokens"].keys():
+			fields = poolData["tokens"][token].keys();
+			if "rateProvider" in fields and "tokenRateCacheDuration" in fields:
+				wrappedToken = token;
+			else:
+				mainToken = token;
+		if mainToken == wrappedToken:
+			self.ERROR("Must have one wrapped and one main token!");
+			return(False);
+
+		lowerTarget = int(poolData["lowerTarget"]);
+		upperTarget = int(poolData["upperTarget"]);
+		rateProvider = self.web3.toChecksumAddress(poolData["tokens"][wrappedToken]["rateProvider"]);
+		tokenRateCacheDuration = int(poolData["tokens"][wrappedToken]["tokenRateCacheDuration"]);
+
+		createFunction = factory.functions.create(	poolData["name"],
+													poolData["symbol"],
+													self.web3.toChecksumAddress(mainToken),
+													self.web3.toChecksumAddress(wrappedToken),
+													lowerTarget,
+													upperTarget,
+													swapFeePercentage,
+													rateProvider,
+													tokenRateCacheDuration,
+													owner);
+		return(createFunction);
+
 	def balCreatePoolInFactory(self, poolDescription, gasFactor, gasPriceSpeed, nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 		createFunction = None;
 		poolFactoryName = poolDescription["poolType"] + "Factory";
@@ -909,6 +993,10 @@ class balpy(object):
 			createFunction = self.balCreateFnMetaStablePoolFactory(poolDescription);
 		if poolFactoryName == "InvestmentPoolFactory":
 			createFunction = self.balCreateFnInvestmentPoolFactory(poolDescription);
+		if poolFactoryName == "StablePhantomPoolFactory":
+			createFunction = self.balCreateFnStablePhantomPoolFactory(poolDescription);
+		if poolFactoryName == "LinearPoolFactory":
+			createFunction = self.balCreateFnLinearPoolFactory(poolDescription);
 		if createFunction is None:
 			print("No pool factory found with name:", poolFactoryName);
 			print("Currently supported pool types are:");
@@ -918,6 +1006,8 @@ class balpy(object):
 			print("\tLiquidityBootstrappingPool");
 			print("\tMetaStablePool");
 			print("\tInvestmentPool");
+			print("\tStablePhantomPool");
+			print("\tLinearPool");
 			return(False);
 
 		if not createFunction:
@@ -1083,9 +1173,12 @@ class balpy(object):
 		poolAddress = self.web3.toChecksumAddress(poolId[:42]);
 		return(poolAddress);
 
-	def balGetPoolCreationData(self, poolId, verbose=False):
+	def balGetPoolCreationData(self, poolId, verbose=False, inputHash=None):
 		address = self.balPooldIdToAddress(poolId);
-		txns = self.getTransactionsByAddress(address, internal=True, verbose=verbose);
+		if inputHash is None:
+			txns = self.getTransactionsByAddress(address, internal=True, verbose=verbose);
+		else:
+			txns = self.getTransactionByHash(inputHash, verbose=verbose);
 
 		poolTypeByContract = {};
 		for poolType in self.deploymentAddresses.keys():
@@ -1093,12 +1186,22 @@ class balpy(object):
 			poolTypeByContract[deploymentAddress] = poolType;
 
 		poolFactoryType = None;
-		for txn in txns:
-			if txn["from"].lower() in poolTypeByContract.keys():
-				poolFactoryType = poolTypeByContract[txn["from"].lower()];
-				txHash = txn["hash"];
-				stamp = txn["timeStamp"];
-				break;
+		if inputHash is None:
+			for txn in txns:
+				if txn["from"].lower() in poolTypeByContract.keys():
+					poolFactoryType = poolTypeByContract[txn["from"].lower()];
+					txHash = txn["hash"];
+					stamp = txn["timeStamp"];
+					break;
+		else:
+			txn = txns["result"];
+			if verbose:
+				print();
+				print(txn);
+			poolFactoryType = poolTypeByContract[txn["to"].lower()];
+			txHash = txn["hash"];
+			stamp = self.web3.eth.get_block(int(txn["blockNumber"],16))["timestamp"];
+
 		return(address, poolFactoryType, txHash, stamp);
 
 	def balGetPoolFactoryCreationTime(self, address):
@@ -1109,13 +1212,16 @@ class balpy(object):
 		transaction = self.web3.eth.get_transaction(txHash);
 		return(transaction.input)
 
-	def balGeneratePoolCreationArguments(self, poolId, verbose=False):
-		if self.network in ["polygon", "arbitrum"]:
+	def balGeneratePoolCreationArguments(self, poolId, verbose=False, creationHash=None):
+		if self.network in ["polygon"] and creationHash is None:
+			self.ERROR("Verifying on polygon requires you to pass creationHash")
+			return(False)
+		if self.network in ["arbitrum"]:
 			self.ERROR("Automated pool verification doesn't work on " + self.network + " yet. Please try the method outlined in the docs using Tenderly.");
 			return(False);
 
 		# query etherscan for internal transactions to find pool factory, pool creation time, and creation hash
-		(address, poolFactoryType, txHash, stampPool) = self.balGetPoolCreationData(poolId, verbose=verbose);
+		(address, poolFactoryType, txHash, stampPool) = self.balGetPoolCreationData(poolId, verbose=verbose, inputHash=creationHash);
 
 		# get the input data used to generate the pool
 		inputData = self.getInputData(txHash);
