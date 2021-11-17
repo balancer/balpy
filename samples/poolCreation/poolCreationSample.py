@@ -57,12 +57,13 @@ def main():
 	print("=============== Step 3: Create Pool in Factory ===============")
 	print("==============================================================")
 	print();
-
+	creationHash = None;
 	if not "poolId" in pool.keys():
 		txHash = bal.balCreatePoolInFactory(pool, gasFactor, gasSpeed, gasPriceGweiOverride=gasPriceGweiOverride);
 		if not txHash:
 			quit();
 		poolId = bal.balGetPoolIdFromHash(txHash);
+		creationHash = txHash;
 		pool["poolId"] = poolId;
 		with open(pathToPool, 'w') as f:
 			json.dump(pool, f, indent=4);
@@ -90,7 +91,11 @@ def main():
 	print("==================================================================")
 	print();
 
-	command = bal.balGeneratePoolCreationArguments("0x" + poolId);
+	if not creationHash is None:
+		command = bal.balGeneratePoolCreationArguments("0x" + poolId, creationHash=creationHash);
+	else:
+		command = bal.balGeneratePoolCreationArguments("0x" + poolId);
+
 	print(command)
 	print()
 	print("If you need more complete instructions on what to do with this command, go to:");
