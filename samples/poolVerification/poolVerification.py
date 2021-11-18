@@ -7,7 +7,7 @@ def main():
 	# On Polygon, you must pass the pool creation hash to generate verification params
 	# creationHash = None;
 	creationHash = "0x18c7e1c9235c6e93878e55a87ed249f9d0ceb9d12ee584794e92f80f7645686d";
-	verbose = True;
+	verbose = False;
 
 	bal = balpy.balpy.balpy(network);
 	isVerified = bal.isContractVerified(poolId, verbose=verbose);
