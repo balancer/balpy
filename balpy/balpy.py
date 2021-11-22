@@ -70,8 +70,9 @@ class balpy(object):
 						"ropsten":	{"id":3,		"blockExplorerUrl":"ropsten.etherscan.io"													},
 						"rinkeby":	{"id":4,		"blockExplorerUrl":"rinkeby.etherscan.io"													},
 						"goerli":	{"id":5,		"blockExplorerUrl":"goerli.etherscan.io"													},
-						"kovan":	{"id":42,		"blockExplorerUrl":"kovan.etherscan.io",			"balFrontend":"kovan.app.balancer.fi/#/"},
+						"kovan":	{"id":42,		"blockExplorerUrl":"kovan.etherscan.io",			"balFrontend":"kovan.balancer.fi/#/"	},
 						"polygon":	{"id":137,		"blockExplorerUrl":"polygonscan.com",				"balFrontend":"polygon.balancer.fi/#/"	},
+						"fantom":	{"id":250,		"blockExplorerUrl":"ftmscan.com",					"balFrontend":"app.beets.fi/#/"			},
 						"arbitrum":	{"id":42161,	"blockExplorerUrl":"arbiscan.io",					"balFrontend":"arbitrum.balancer.fi/#/"	}
 					};
 
@@ -262,7 +263,7 @@ class balpy(object):
 					deploymentPath = os.path.join('deployments', subdir, "output", self.network + '.json');
 					f = pkgutil.get_data(__name__, deploymentPath).decode();
 					currData = json.loads(f);
-					currAddress = currData[contractType];
+					currAddress = self.web3.toChecksumAddress(currData[contractType]);
 				self.deploymentAddresses[contractType] = currAddress;
 			except BaseException as error:
 				self.WARN('{} not found for network {}'.format(contractType, self.network))
