@@ -108,10 +108,10 @@ class balpy(object):
 								"directory":"20210418-authorizer"
 							},
 							"StablePhantomPoolFactory": {
-								"directory":"????-linear-phantom-stable-pools"
+								"directory":"testnet-linear-phantom-stable-pools"
 							},
 							"LinearPoolFactory": {
-								"directory":"????-linear-phantom-stable-pools"
+								"directory":"testnet-linear-phantom-stable-pools"
 							}
 						};
 
