@@ -11,20 +11,30 @@ balpy has been tested on:
 - Windows using Python 3.9.5
 
 ### Install
-I recommend using a virtual environment:
+Local installation of the latest balpy release can be done simply using:
 ```bash
-python3 -m venv ./venv
-source ./venv/bin/activate
-python3 -m pip install balpy
+pip install balpy
 ```
+However, we recommend creating a package through poetry
+```bash
+poetry new package-name
+cd package-name
+poetry add balpy
+```
+
 See release on PyPI: https://pypi.org/project/balpy/
 
 ### Build from source
+
 ```bash
+# If you do not have poetry installed, install it using the following commands:
+pip install poetry
+# Install in virtual environment using poetry
 git clone https://github.com/balancer-labs/balpy.git
 cd balpy
-python3 -m build
-python3 -m pip install dist/<your_build>.whl
+poetry install
+# You can enter the virtual environment using
+poetry shell
 ```
 
 ### Environment Variables
