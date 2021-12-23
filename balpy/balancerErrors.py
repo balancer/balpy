@@ -93,15 +93,15 @@ codes = {0:"ADD_OVERFLOW",
 	602:"INSUFFICIENT_FLASH_LOAN_FEE_AMOUNT"
 };
 
-def translateError(code):
+def translate_error(code):
 	return(codes[code])
 
-def handleException(error):
-	stringError = str('{}'.format(error));
-	if "BAL#" in stringError:
-		code = int(stringError.split("BAL#")[1])
-		balError = translateError(code);
-		descriptiveError = "Balancer Smart Contract threw error: " + balError;
-		return(descriptiveError);
+def handle_exception(error):
+	string_error = str('{}'.format(error));
+	if "BAL#" in string_error:
+		code = int(string_error.split("BAL#")[1])
+		bal_error = translate_error(code);
+		descriptive_error = "Balancer Smart Contract threw error: " + bal_error;
+		return(descriptive_error);
 	else:
-		return(stringError);
+		return(string_error);
