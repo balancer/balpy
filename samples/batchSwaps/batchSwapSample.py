@@ -9,21 +9,21 @@ def main():
 		print("Usage: python3", sys.argv[0], "/path/to/swap.json");
 		quit();
 
-	pathToSwap = sys.argv[1];
-	if not os.path.isfile(pathToSwap):
-		print("Path", pathToSwap, "does not exist. Please enter a valid path.")
+	path_to_swap = sys.argv[1];
+	if not os.path.isfile(path_to_swap):
+		print("Path", path_to_swap, "does not exist. Please enter a valid path.")
 		quit();
 
-	with open(pathToSwap) as f:
+	with open(path_to_swap) as f:
 		data = json.load(f)
 
-	gasFactor = 1.05;
-	gasSpeedApproval = "fast";
-	gasSpeedTrade = "fast";
+	gas_factor = 1.05;
+	gas_speed_approval = "fast";
+	gas_speed_trade = "fast";
 
 	bal = balpy.balpy.balpy(data["network"]);
 	swap = data["batchSwap"];
-	isFlashSwap = bal.balSwapIsFlashSwap(swap);
+	is_flash_swap = bal.balSwapIsFlashSwap(swap);
 
 	print();
 	print("==============================================================")
@@ -32,9 +32,9 @@ def main():
 	print();
 	
 	tokens = swap["assets"];
-	amountsIn = swap["limits"];
-	if not isFlashSwap:
-		if not bal.erc20HasSufficientBalances(tokens, amountsIn):
+	amounts_in = swap["limits"];
+	if not is_flash_swap:
+		if not bal.erc20HasSufficientBalances(tokens, amounts_in):
 			print("Please fix your insufficient balance before proceeding.")
 			print("Quitting...")
 			quit();
@@ -48,8 +48,8 @@ def main():
 	print("==============================================================")
 	print();
 
-	if not isFlashSwap:
-		bal.erc20AsyncEnforceSufficientVaultAllowances(tokens, amountsIn, amountsIn, gasFactor, gasSpeedApproval);
+	if not is_flash_swap:
+		bal.erc20AsyncEnforceSufficientVaultAllowances(tokens, amounts_in, amounts_in, gas_factor, gas_speed_approval);
 	else:
 		print("Executing Flash Swap, no token approvals necessary.")
 	# quit();
@@ -60,7 +60,7 @@ def main():
 	print("==============================================================")
 	print();
 
-	txHash = bal.balDoBatchSwap(swap, gasFactor=gasFactor, gasPriceSpeed=gasSpeedTrade);
+	tx_hash = bal.balDoBatchSwap(swap, gas_factor=gas_factor, gasPriceSpeed=gas_speed_trade);
 	
 if __name__ == '__main__':
 	main();
