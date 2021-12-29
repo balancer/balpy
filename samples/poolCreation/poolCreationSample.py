@@ -12,21 +12,21 @@ def main():
 		print("Usage: python3", sys.argv[0], "/path/to/pool.json");
 		quit();
 
-	pathToPool = sys.argv[1];
-	if not os.path.isfile(pathToPool):
-		print("Path", pathToPool, "does not exist. Please enter a valid path.")
+	path_to_pool = sys.argv[1];
+	if not os.path.isfile(path_to_pool):
+		print("Path", path_to_pool, "does not exist. Please enter a valid path.")
 		quit();
 
-	with open(pathToPool) as f:
+	with open(path_to_pool) as f:
 		pool = jstyleson.load(f)
 
 	bal = balpy.balpy.balpy(pool["network"]);
-	gasFactor = 1.05;
-	gasSpeed = pool["gasSpeed"];
-	gasPriceGweiOverride = pool["gasPriceOverride"];
-	if gasPriceGweiOverride == "":
-		gasPriceGweiOverride = -1;
-	gasPriceGweiOverride = float(gasPriceGweiOverride);
+	gas_factor = 1.05;
+	gas_speed = pool["gas_speed"];
+	gas_price_gwei_override = pool["gasPriceOverride"];
+	if gas_price_gwei_override == "":
+		gas_price_gwei_override = -1;
+	gas_price_gwei_override = float(gas_price_gwei_override);
 
 	print();
 	print("==============================================================")
@@ -35,8 +35,8 @@ def main():
 	print();
 	
 	tokens = list(pool["tokens"].keys());
-	initialBalances = [pool["tokens"][token]["initialBalance"] for token in tokens];
-	if not bal.erc20HasSufficientBalances(tokens, initialBalances):
+	initial_balances = [pool["tokens"][token]["initialBalance"] for token in tokens];
+	if not bal.erc20HasSufficientBalances(tokens, initial_balances):
 		print("Please fix your insufficient balance before proceeding.");
 		print("Quitting...");
 		quit();
@@ -47,33 +47,33 @@ def main():
 	print("==============================================================")
 	print();
 
-	(tokensSorted, allowancesSorted) = bal.erc20GetTargetAllowancesFromPoolData(pool);
-	initialBalancesSorted = [pool["tokens"][token]["initialBalance"] for token in tokensSorted];
+	(tokens_sorted, allowances_sorted) = bal.erc20GetTargetAllowancesFromPoolData(pool);
+	initial_balances_sorted = [pool["tokens"][token]["initialBalance"] for token in tokens_sorted];
 	# Async: Do [Approve]*N then [Wait]*N instead of [Approve, Wait]*N
-	bal.erc20AsyncEnforceSufficientVaultAllowances(tokensSorted, allowancesSorted, initialBalancesSorted, gasFactor, gasSpeed, gasPriceGweiOverride=gasPriceGweiOverride);
+	bal.erc20AsyncEnforceSufficientVaultAllowances(tokens_sorted, allowances_sorted, initial_balances_sorted, gas_factor, gas_speed, gas_price_gwei_override=gas_price_gwei_override);
 
 	print();
 	print("==============================================================")
 	print("=============== Step 3: Create Pool in Factory ===============")
 	print("==============================================================")
 	print();
-	creationHash = None;
-	if not "poolId" in pool.keys():
-		txHash = bal.balCreatePoolInFactory(pool, gasFactor, gasSpeed, gasPriceGweiOverride=gasPriceGweiOverride);
-		if not txHash:
+	creation_hash = None;
+	if not "pool_id" in pool.keys():
+		tx_hash = bal.balCreatePoolInFactory(pool, gas_factor, gas_speed, gas_price_gwei_override=gas_price_gwei_override);
+		if not tx_hash:
 			quit();
-		poolId = bal.balGetPoolIdFromHash(txHash);
-		creationHash = txHash;
-		pool["poolId"] = poolId;
-		with open(pathToPool, 'w') as f:
+		pool_id = bal.balGetPoolIdFromHash(tx_hash);
+		creation_hash = tx_hash;
+		pool["pool_id"] = pool_id;
+		with open(path_to_pool, 'w') as f:
 			json.dump(pool, f, indent=4);
 	else:
 		print("PoolId found in pool description. Skipping the pool factory!");
-		poolId = pool["poolId"];
+		pool_id = pool["pool_id"];
 
-	poolLink = bal.balGetLinkToFrontend(poolId);
-	if not poolLink == "":
-		webbrowser.open_new_tab(poolLink);
+	pool_link = bal.balGetLinkToFrontend(pool_id);
+	if not pool_link == "":
+		webbrowser.open_new_tab(pool_link);
 
 	print();
 	print("==================================================================")
@@ -81,7 +81,7 @@ def main():
 	print("==================================================================")
 	print();
 	try:
-		txHash = bal.balJoinPoolInit(pool, poolId, gasPriceGweiOverride=gasPriceGweiOverride);
+		tx_hash = bal.balJoinPoolInit(pool, pool_id, gas_price_gwei_override=gas_price_gwei_override);
 	except:
 		print("Joining pool failed! Are you the owner?");
 
@@ -91,10 +91,10 @@ def main():
 	print("==================================================================")
 	print();
 
-	if not creationHash is None:
-		command = bal.balGeneratePoolCreationArguments("0x" + poolId, creationHash=creationHash);
+	if not creation_hash is None:
+		command = bal.balGeneratePoolCreationArguments("0x" + pool_id, creation_hash=creation_hash);
 	else:
-		command = bal.balGeneratePoolCreationArguments("0x" + poolId);
+		command = bal.balGeneratePoolCreationArguments("0x" + pool_id);
 
 	print(command)
 	print()

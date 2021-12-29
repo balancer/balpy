@@ -1,13 +1,13 @@
 import balpy
 
 def main():
-	gasFactor = 1.05;
-	gasSpeed = "fast";
-	gasOverride = 5;
+	gas_factor = 1.05;
+	gas_speed = "fast";
+	gas_override = 5;
 
 	network = "kovan"
 	bal = balpy.balpy.balpy(network);
-	allowedAddress = bal.deploymentAddresses["Vault"];
+	allowed_address = bal.deploymentAddresses["Vault"];
 	tokens = [	"0xdFCeA9088c8A88A76FF74892C1457C17dfeef9C1",
 				"0x41286Bb1D3E870f3F750eB7E1C25d7E48c8A1Ac7",
 				"0xc2569dd7d0fd715B054fBf16E75B001E5c0C1115",
@@ -24,24 +24,24 @@ def main():
 
 	for token in tokens:
 		print("Checking:", token)
-		allowance = bal.erc20GetAllowanceStandard(token, allowedAddress);
+		allowance = bal.erc20GetAllowanceStandard(token, allowed_address);
 		if allowance > 0:
-			txHash = bal.erc20SignAndSendNewAllowance(	token,
-														allowedAddress,
+			tx_hash = bal.erc20SignAndSendNewAllowance(	token,
+														allowed_address,
 														0,
-														gasFactor,
-														gasSpeed,
+														gas_factor,
+														gas_speed,
 														nonceOverride=nonce,
 														isAsync=True,
-														gasPriceGweiOverride=gasOverride);
+														gasPriceGweiOverride=gas_override);
 			nonce += 1
-			hashes.append(txHash);
-			print("\tRevoking allowance -- txHash:", txHash)
+			hashes.append(tx_hash);
+			print("\tRevoking allowance -- tx_hash:", tx_hash)
 		else:
 			print("\tNo allowance. Skipping...")
 
-	for txHash in hashes:
-		bal.waitForTx(txHash);
+	for tx_hash in hashes:
+		bal.waitForTx(tx_hash);
 		
 if __name__ == '__main__':
 	main();

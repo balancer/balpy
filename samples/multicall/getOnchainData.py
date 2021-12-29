@@ -7,17 +7,17 @@ def main():
 	network = "mainnet";
 	bal = balpy.balpy.balpy(network);
 
-	poolIdsUrl = "https://raw.githubusercontent.com/gerrrg/balancer-pool-ids/master/pools/" + network + ".json";
-	r = requests.get(poolIdsUrl);
-	poolIds = r.json()["pools"];
+	pool_ids_url = "https://raw.githubusercontent.com/gerrrg/balancer-pool-ids/master/pools/" + network + ".json";
+	r = requests.get(pool_ids_url);
+	pool_ids = r.json()["pools"];
 
-	if "Element" in poolIds.keys():
-		del poolIds["Element"];
+	if "Element" in pool_ids.keys():
+		del pool_ids["Element"];
 
-	tStart = time.time();
-	results = bal.getOnchainData(poolIds);
-	tEnd = time.time();
-	print("Query took", tEnd - tStart, "seconds");
+	t_start = time.time();
+	results = bal.getOnchainData(pool_ids);
+	t_end = time.time();
+	print("Query took", t_end - t_start, "seconds");
 
 	print(json.dumps(results,indent=4));
 
