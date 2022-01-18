@@ -11,20 +11,43 @@ balpy has been tested on:
 - Windows using Python 3.9.5
 
 ### Install
-I recommend using a virtual environment:
+#### Install from PiP
+Local installation of the latest balpy release can be done simply using:
 ```bash
-python3 -m venv ./venv
-source ./venv/bin/activate
-python3 -m pip install balpy
+pip install balpy
+```
+However, for reliability and isolation, we recommend creating a package through poetry
+```bash
+# If you do not have poetry installed, install it using the following commands:
+# pip install poetry
+poetry new package-name
+cd package-name
+poetry add balpy
 ```
 See release on PyPI: https://pypi.org/project/balpy/
 
-### Build from source
+### Install from source
+```bash
+# Install in virtual environment using poetry
+git clone https://github.com/balancer-labs/balpy.git
+cd balpy
+poetry install # Install dependencies and package
+# You can enter the virtual environment using
+poetry shell
+# You can run a file using the environment
+poetry run ./samples/misc/vaultWethRead.py
+```
+
+#### Locally building wheels
+You can also create a wheel (.whl) file to build the library for platform-specific distribution
 ```bash
 git clone https://github.com/balancer-labs/balpy.git
 cd balpy
-python3 -m build
-python3 -m pip install dist/<your_build>.whl
+poetry build
+# You can find the wheels here
+cd dist/
+# Wheel name will depend on version
+pip install ./balpy-X.X.X.whl
 ```
 
 ### Environment Variables

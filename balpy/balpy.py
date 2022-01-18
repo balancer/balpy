@@ -18,7 +18,7 @@ from web3._utils.abi import get_abi_output_types
 
 import eth_abi
 from multicall.constants import MULTICALL_ADDRESSES
-from balpy import balancerErrors as be
+from . import balancerErrors as be
 
 def processData(threadId, endpoint, inputData, outputAbiData, return_dict):
 	outputAbis = outputAbiData;
