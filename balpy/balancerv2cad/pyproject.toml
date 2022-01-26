@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "balancerv2cad"
+version = "0.1.92"
+description = "A preconfigured Python package, using python poetry"
+authors = ["Nico Rodriguez, Thomas Liu, Marcin Jaczynski"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/officialnico/balancerv2cad.git"
+repository = "https://github.com/officialnico/balancerv2cad.git"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+
+[tool.poetry.scripts]
+drive = "balancerv2cad.main:run"
+tests = "scripts.project_helper:run_tests"
+stubs = "scripts.project_helper:stub_gen"
+analyze = "scripts.project_helper:run_analyzer"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
