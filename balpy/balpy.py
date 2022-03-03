@@ -1214,9 +1214,6 @@ class balpy(object):
 		return(transaction.input)
 
 	def balGeneratePoolCreationArguments(self, poolId, verbose=False, creationHash=None):
-		if self.network in ["polygon"] and creationHash is None:
-			self.ERROR("Verifying on polygon requires you to pass creationHash")
-			return(False)
 		if self.network in ["arbitrum"]:
 			self.ERROR("Automated pool verification doesn't work on " + self.network + " yet. Please try the method outlined in the docs using Tenderly.");
 			return(False);
