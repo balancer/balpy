@@ -322,17 +322,18 @@ class balpy(object):
 		if gasPriceGweiOverride > -1:
 			gasPriceGwei = gasPriceGweiOverride;
 		else:
-			#rinkeby, kovan gas strategy
-			if chainIdNetwork in [4, 42]:
-				gasPriceGwei = 2;
+			gasPriceGwei = self.getGasPrice(gasSpeed);
+			# #rinkeby, kovan gas strategy
+			# if chainIdNetwork in [4, 42]:
+			# 	gasPriceGwei = 2;
 
-			# polygon gas strategy
-			elif chainIdNetwork == 137:
-				gasPriceGwei = self.getGasPricePolygon(gasSpeed);
+			# # polygon gas strategy
+			# elif chainIdNetwork == 137:
+			# 	gasPriceGwei = self.getGasPricePolygon(gasSpeed);
 
-			#mainnet gas strategy
-			else:
-				gasPriceGwei = self.getGasPriceEtherscanGwei(gasSpeed);
+			# #mainnet gas strategy
+			# else:
+			# 	gasPriceGwei = self.getGasPriceEtherscanGwei(gasSpeed);
 		
 		print("\tGas Estimate:\t", gasEstimate);
 		print("\tGas Price:\t", gasPriceGwei, "Gwei");

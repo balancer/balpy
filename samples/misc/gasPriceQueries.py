@@ -8,7 +8,7 @@ def main():
 	# extended time periods. In testing, this script made 140-150 calls to the RPC
 	# and took ~1 minute to initialize the cache. 
 
-	speeds = ["slow", "medium", "fast"]
+	speeds = ["slow", "average", "fast"]
 	print("\n\tSpeed\tPrice(gwei)")
 	print("\t-----\t-----------")
 	for speed in speeds:
