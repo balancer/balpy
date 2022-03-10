@@ -1480,8 +1480,13 @@ class balpy(object):
 		for swap in swapDescription["swaps"]:
 			idxSortedIn = originalIdxToSortedIdx[int(swap["assetInIndex"])];
 			idxSortedOut = originalIdxToSortedIdx[int(swap["assetOutIndex"])];
-			decimals = self.erc20GetDecimals(sortedTokens[idxSortedIn]);
-			amount = int( Decimal(swap["amount"]) * Decimal(10**(decimals)) );
+
+			idxTokenAmount = idxSortedIn;
+			if kind == 1:
+				idxTokenAmount = idxSortedOut;
+
+			decimals = self.erc20GetDecimals(sortedTokens[idxTokenAmount]);
+			amount = int( Decimal(swap["amount"]) * Decimal(10**(decimals)));
 
 			swapsTuple = (	swap["poolId"],
 							idxSortedIn,
