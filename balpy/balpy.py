@@ -1165,6 +1165,10 @@ class balpy(object):
 		manageUserBalanceFn = vault.functions.manageUserBalance(inputTupleList);
 		return(manageUserBalanceFn);
 
+	def balLoadContract(self, contractName):
+		contract = self.web3.eth.contract(address=self.deploymentAddresses[contractName], abi=self.abis[contractName]);
+		return(contract)
+
 	def balPoolGetAbi(self, poolType):
 		abiPath = os.path.join('abi/pools/'+ poolType + '.json');
 		f = pkgutil.get_data(__name__, abiPath).decode();
@@ -1457,7 +1461,7 @@ class balpy(object):
 		)
 		return(singleSwapFunction);
 
-	def balCreateFnBatchSwap(self, swapDescription):
+	def balFormatBatchSwapData(self,swapDescription):
 		(sortedTokens, originalIdxToSortedIdx, sortedIdxToOriginalIdx) = self.balReorderTokenDicts(swapDescription["assets"]);
 		numTokens = len(sortedTokens);
 
@@ -1492,6 +1496,10 @@ class balpy(object):
 					swapDescription["funds"]["toInternalBalance"]);
 		intReorderedLimits = [int(element) for element in reorderedLimits];
 		deadline = int(swapDescription["deadline"]);
+		return(kind, swapsTuples, assets, funds, intReorderedLimits, deadline);
+
+	def balCreateFnBatchSwap(self, swapDescription):
+		(kind, swapsTuples, assets, funds, intReorderedLimits, deadline) = self.balFormatBatchSwapData(swapDescription);
 		vault = self.web3.eth.contract(address=self.deploymentAddresses["Vault"], abi=self.abis["Vault"]);
 		batchSwapFunction = vault.functions.batchSwap(	kind,
 														swapsTuples,
@@ -1500,6 +1508,21 @@ class balpy(object):
 														intReorderedLimits,
 														deadline);
 		return(batchSwapFunction);
+
+	def balQueryBatchSwap(self, swapDescription):
+		(kind, swapsTuples, assets, funds, intReorderedLimits, deadline) = self.balFormatBatchSwapData(swapDescription);
+		vault = self.balLoadContract("Vault");
+		amounts = vault.functions.queryBatchSwap(		kind,
+														swapsTuples,
+														assets,
+														funds).call();
+
+		output = {};
+		for asset, amount in zip(assets, amounts):
+			decimals = self.erc20GetDecimals(asset);
+			output[asset] = amount * 10**(-decimals);
+		return(output);
+
 
 	def balGetLinkToFrontend(self, poolId):
 		if "balFrontend" in self.networkParams[self.network].keys():
