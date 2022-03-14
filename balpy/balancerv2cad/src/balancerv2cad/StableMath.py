@@ -234,7 +234,7 @@ class StableMath:
         # to calculate the current weight of each token
         sumBalances = Decimal(0)
         for i in range(len(balances)):
-            sumBalances += i
+            sumBalances += balances[i]
 
         # get amountInAfterFee
         newBalanceTokenIndex = StableMath.getTokenBalanceGivenInvariantAndAllOtherBalances(amplificationParameter, balances, newInvariant, tokenIndex)
@@ -286,7 +286,7 @@ class StableMath:
         # the current weight of each token
         sumBalances = Decimal(0)
         for i in range(len(balances)):
-            sumBalances += i
+            sumBalances += balances[i]
 
         # get amountOutBeforeFee
         newBalanceTokenIndex = StableMath.getTokenBalanceGivenInvariantAndAllOtherBalances(amplificationParameter, balances, newInvariant, tokenIndex)
