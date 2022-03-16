@@ -626,11 +626,6 @@ class balpy(object):
 		if internal:
 			internalString = "internal";
 
-		etherscanUrl = self.networkParams[self.network]["blockExplorerUrl"]
-		separator = ".";
-		if self.network in ["kovan", "rinkeby","goerli"]:
-			separator = "-";
-
 		url = [];
 		url.append("/api?module=account&action=txlist{}&address=".format(internalString));
 		url.append(address);
