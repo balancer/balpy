@@ -9,6 +9,8 @@ import sys
 import pkgutil
 from decimal import *
 import multiprocessing
+from functools import cache
+import copy
 
 # web3 
 from web3 import Web3, middleware
@@ -18,6 +20,7 @@ from web3._utils.abi import get_abi_output_types
 
 import eth_abi
 from multicall.constants import MULTICALL_ADDRESSES
+from multicaller import multicaller
 from . import balancerErrors as be
 
 def processData(threadId, endpoint, inputData, outputAbiData, return_dict):
@@ -188,6 +191,11 @@ class balpy(object):
 
 		self.endpoint = endpoint;
 		self.web3 = Web3(Web3.HTTPProvider(endpoint));
+		self.mc = multicaller.multicaller(	_chainId=self.networkParams[self.network]["id"],
+											_web3=self.web3,
+											_maxRetries=5,
+											_verbose=False);
+
 		acct = self.web3.eth.account.privateKeyToAccount(self.privateKey);
 		self.web3.eth.default_account = acct.address;
 		self.address = acct.address;
@@ -917,15 +925,6 @@ class balpy(object):
 		rateProviders = [self.web3.toChecksumAddress(poolData["tokens"][token]["rateProvider"]) for token in tokens]
 		tokenRateCacheDurations = [int(poolData["tokens"][token]["tokenRateCacheDuration"]) for token in tokens]
 
-		print(poolData["name"])
-		print(poolData["symbol"])
-		print(checksumTokens)
-		print(int(poolData["amplificationParameter"]))
-		print(rateProviders)
-		print(tokenRateCacheDurations)
-		print(swapFeePercentage)
-		print(owner)
-
 		createFunction = factory.functions.create(	poolData["name"],
 													poolData["symbol"],
 													checksumTokens,
@@ -1160,6 +1159,7 @@ class balpy(object):
 		manageUserBalanceFn = vault.functions.manageUserBalance(inputTupleList);
 		return(manageUserBalanceFn);
 
+	@cache
 	def balLoadContract(self, contractName):
 		contract = self.web3.eth.contract(address=self.deploymentAddresses[contractName], abi=self.abis[contractName]);
 		return(contract)
@@ -1456,7 +1456,7 @@ class balpy(object):
 		)
 		return(singleSwapFunction);
 
-	def balFormatBatchSwapData(self,swapDescription):
+	def balFormatBatchSwapData(self, swapDescription):
 		(sortedTokens, originalIdxToSortedIdx, sortedIdxToOriginalIdx) = self.balReorderTokenDicts(swapDescription["assets"]);
 		numTokens = len(sortedTokens);
 
@@ -1508,6 +1508,27 @@ class balpy(object):
 														intReorderedLimits,
 														deadline);
 		return(batchSwapFunction);
+
+	def balQueryBatchSwaps(self, swapsDescription):
+		vault = self.balLoadContract("Vault");
+		for swapDescription in swapsDescription:
+
+			# do deep copy to avoid modifying the swapDescription in place, breaking index remappings
+			deepCopySwapDescription = copy.deepcopy(swapDescription);
+			(kind, swapsTuples, assets, funds, intReorderedLimits, deadline) = self.balFormatBatchSwapData(deepCopySwapDescription);
+			args = [kind, swapsTuples, assets, funds];
+			self.mc.addCall(vault.address, vault.abi, "queryBatchSwap", args=args);
+		data = self.mc.execute();
+
+		outputs = [];
+		for swapDescription, outputData in zip(swapsDescription, data):
+			amounts = list(outputData[0]);
+			output = {};
+			for asset, amount in zip(assets, amounts):
+				decimals = self.erc20GetDecimals(asset);
+				output[asset] = amount * 10**(-decimals);
+			outputs.append(output);
+		return(outputs);
 
 	def balQueryBatchSwap(self, swapDescription):
 		(kind, swapsTuples, assets, funds, intReorderedLimits, deadline) = self.balFormatBatchSwapData(swapDescription);
