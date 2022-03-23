@@ -45,6 +45,8 @@ class balpy(object):
 
 	# Constants
 	INFINITE = 2 ** 256 - 1; #for infinite unlock
+	MAX_UINT_112 = 2**112 - 1; #for stablephantom max bpt
+
 
 	# Environment variable names
 	envVarEtherscan = 	"KEY_API_ETHERSCAN";
@@ -111,10 +113,10 @@ class balpy(object):
 								"directory":"20210418-authorizer"
 							},
 							"StablePhantomPoolFactory": {
-								"directory":"testnet-linear-phantom-stable-pools"
+								"directory":"20211208-stable-phantom-pool"
 							},
-							"LinearPoolFactory": {
-								"directory":"testnet-linear-phantom-stable-pools"
+							"AaveLinearPoolFactory": {
+								"directory":"20211208-aave-linear-pool"
 							}
 						};
 
@@ -744,6 +746,8 @@ class balpy(object):
 			token = tokens[i];
 			rawValue = amounts[i];
 			decimals = self.erc20GetDecimals(token);
+			if rawValue == self.INFINITE or rawValue == self.MAX_UINT_112:
+				decimals = 0;
 			raw = int(Decimal(rawValue) * Decimal(10**decimals));
 			rawTokens.append(raw);
 		return(rawTokens);
@@ -935,8 +939,8 @@ class balpy(object):
 													owner);
 		return(createFunction);
 
-	def balCreateFnLinearPoolFactory(self, poolData):
-		factory = self.balGetFactoryContract("LinearPoolFactory");
+	def balCreateFnAaveLinearPoolFactory(self, poolData):
+		factory = self.balGetFactoryContract("AaveLinearPoolFactory");
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
 		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
 		owner = self.balSetOwner(poolData);
@@ -944,29 +948,22 @@ class balpy(object):
 		mainToken = None;
 		wrappedToken = None;
 		for token in poolData["tokens"].keys():
-			fields = poolData["tokens"][token].keys();
-			if "rateProvider" in fields and "tokenRateCacheDuration" in fields:
+			if poolData["tokens"][token]["isWrappedToken"]:
 				wrappedToken = token;
 			else:
 				mainToken = token;
+
 		if mainToken == wrappedToken:
-			self.ERROR("Must have one wrapped and one main token!");
+			self.ERROR("AaveLinearPool must have one wrappedToken and one mainToken. Please check your inputs. Quitting...");
 			return(False);
 
-		lowerTarget = int(poolData["lowerTarget"]);
 		upperTarget = int(poolData["upperTarget"]);
-		rateProvider = self.web3.toChecksumAddress(poolData["tokens"][wrappedToken]["rateProvider"]);
-		tokenRateCacheDuration = int(poolData["tokens"][wrappedToken]["tokenRateCacheDuration"]);
-
 		createFunction = factory.functions.create(	poolData["name"],
 													poolData["symbol"],
 													self.web3.toChecksumAddress(mainToken),
 													self.web3.toChecksumAddress(wrappedToken),
-													lowerTarget,
 													upperTarget,
 													swapFeePercentage,
-													rateProvider,
-													tokenRateCacheDuration,
 													owner);
 		return(createFunction);
 
@@ -991,8 +988,8 @@ class balpy(object):
 			createFunction = self.balCreateFnInvestmentPoolFactory(poolDescription);
 		if poolFactoryName == "StablePhantomPoolFactory":
 			createFunction = self.balCreateFnStablePhantomPoolFactory(poolDescription);
-		if poolFactoryName == "LinearPoolFactory":
-			createFunction = self.balCreateFnLinearPoolFactory(poolDescription);
+		if poolFactoryName == "AaveLinearPoolFactory":
+			createFunction = self.balCreateFnAaveLinearPoolFactory(poolDescription);
 		if createFunction is None:
 			print("No pool factory found with name:", poolFactoryName);
 			print("Currently supported pool types are:");
@@ -1003,7 +1000,7 @@ class balpy(object):
 			print("\tMetaStablePool");
 			print("\tInvestmentPool");
 			print("\tStablePhantomPool");
-			print("\tLinearPool");
+			print("\tAaveLinearPool");
 			return(False);
 
 		if not createFunction:
@@ -1084,6 +1081,17 @@ class balpy(object):
 
 	def balJoinPoolInit(self, poolDescription, poolId, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 
+		if poolDescription["poolType"] in ["AaveLinearPool"]:
+			slippageTolerancePercent = 1;
+			txHash = self.balLinearPoolInitJoin(poolDescription, poolId, slippageTolerancePercent=slippageTolerancePercent, gasFactor=gasFactor, gasPriceSpeed=gasPriceSpeed, nonceOverride=nonceOverride, gasEstimateOverride=gasEstimateOverride, gasPriceGweiOverride=gasPriceGweiOverride);
+			return(txHash)
+
+		# StablePhantomPools need their own BPT as one of the provided tokens with a limit of MAX_UINT_112
+		if poolDescription["poolType"] in ["StablePhantomPool"]:
+			initialBalancesNoBpt = [poolDescription["tokens"][token]["initialBalance"] for token in poolDescription["tokens"].keys()];
+			phantomBptAddress = self.balPooldIdToAddress(poolId);
+			poolDescription["tokens"][phantomBptAddress] = {"initialBalance":self.MAX_UINT_112}
+
 		(sortedTokens, checksumTokens) = self.balSortTokens(list(poolDescription["tokens"].keys()));
 		initialBalancesBySortedTokens = [poolDescription["tokens"][token]["initialBalance"] for token in sortedTokens];
 
@@ -1102,6 +1110,50 @@ class balpy(object):
 		print("Transaction Generated!");		
 		txHash = self.sendTx(tx);
 		return(txHash);
+
+	def balLinearPoolInitJoin(self, poolDescription, poolId, slippageTolerancePercent=1, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+
+		phantomBptAddress = self.balPooldIdToAddress(poolId);
+
+		batchSwap = {};
+		batchSwap["kind"] = 0;
+		batchSwap["assets"] = list(poolDescription["tokens"].keys());
+		batchSwap["swaps"] = [];
+
+		numTokens = len(batchSwap["assets"]);
+		for i in range(numTokens):
+			token = batchSwap["assets"][i];
+			swap = {};
+			swap["poolId"] = "0x" + poolId;
+			swap["assetInIndex"] = i;
+			swap["assetOutIndex"] = numTokens;
+			swap["amount"] = poolDescription["tokens"][token]["initialBalance"];
+			if float(swap["amount"]) > 0.0:
+				batchSwap["swaps"].append(swap);
+
+		# add the phantomBpt to the assets/limits list now that we've crafted the swap steps
+		batchSwap["assets"].append(phantomBptAddress);
+		batchSwap["limits"] = [0] * len(batchSwap["assets"]); #for now
+
+		batchSwap["funds"] = {};
+		batchSwap["funds"]["sender"] = self.address;
+		batchSwap["funds"]["recipient"] = self.address;
+		batchSwap["funds"]["fromInternalBalance"] = False;
+		batchSwap["funds"]["toInternalBalance"] = False;
+		batchSwap["deadline"] = "999999999999999999";
+
+		estimates = self.balQueryBatchSwap(batchSwap);
+
+		checksumTokens = [self.web3.toChecksumAddress(t) for t in batchSwap["assets"]];
+		for i in range(len(batchSwap["assets"])):
+			asset = checksumTokens[i];
+			slippageToleranceFactor = slippageTolerancePercent/100.0;
+			if estimates[asset] < 0:
+				slippageToleranceFactor *= -1.0;
+			batchSwap["limits"][i] = estimates[asset] * (1.0 + slippageToleranceFactor);
+
+		txHash = self.balDoBatchSwap(batchSwap, isAsync=False, gasFactor=gasFactor, gasPriceSpeed=gasPriceSpeed, nonceOverride=nonceOverride, gasEstimateOverride=gasEstimateOverride, gasPriceGweiOverride=gasPriceGweiOverride);
+		return(txHash)
 
 	def balVaultWeth(self):
 		vault = self.web3.eth.contract(address=self.deploymentAddresses["Vault"], abi=self.abis["Vault"]);
@@ -1165,12 +1217,16 @@ class balpy(object):
 		return(contract)
 
 	def balPoolGetAbi(self, poolType):
-		abiPath = os.path.join('abi/pools/'+ poolType + '.json');
+
+		deploymentFolder = self.contractDirectories[poolType + "Factory"]["directory"];
+		abiPath = os.path.join("deployments/", deploymentFolder, "abi", poolType + ".json");
 		f = pkgutil.get_data(__name__, abiPath).decode();
 		poolAbi = json.loads(f);
 		return(poolAbi);
 
 	def balPooldIdToAddress(self, poolId):
+		if not "0x" in poolId:
+			poolId = "0x" + poolId;
 		poolAddress = self.web3.toChecksumAddress(poolId[:42]);
 		return(poolAddress);
 
@@ -1334,7 +1390,7 @@ class balpy(object):
 					int(decodedPoolData["managementSwapFeePercentage"])];
 			structInConstructor = True;
 		else:
-			self.ERROR("PoolType", poolType, "not found!")
+			self.ERROR("PoolType " + poolType + " not found!")
 			return(False);
 
 		# encode constructor data
@@ -1509,7 +1565,8 @@ class balpy(object):
 														deadline);
 		return(batchSwapFunction);
 
-	def balQueryBatchSwaps(self, swapsDescription):
+	def balQueryBatchSwaps(self, originalSwapsDescription):
+		swapsDescription = copy.deepcopy(originalSwapsDescription);
 		vault = self.balLoadContract("Vault");
 		for swapDescription in swapsDescription:
 
@@ -1530,7 +1587,8 @@ class balpy(object):
 			outputs.append(output);
 		return(outputs);
 
-	def balQueryBatchSwap(self, swapDescription):
+	def balQueryBatchSwap(self, originalSwapDescription):
+		swapDescription = copy.deepcopy(originalSwapDescription);
 		(kind, swapsTuples, assets, funds, intReorderedLimits, deadline) = self.balFormatBatchSwapData(swapDescription);
 		vault = self.balLoadContract("Vault");
 		amounts = vault.functions.queryBatchSwap(		kind,
@@ -1543,7 +1601,6 @@ class balpy(object):
 			decimals = self.erc20GetDecimals(asset);
 			output[asset] = amount * 10**(-decimals);
 		return(output);
-
 
 	def balGetLinkToFrontend(self, poolId):
 		if "balFrontend" in self.networkParams[self.network].keys():
