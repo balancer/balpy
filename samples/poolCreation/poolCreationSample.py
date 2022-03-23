@@ -82,8 +82,14 @@ def main():
 	print();
 	try:
 		txHash = bal.balJoinPoolInit(pool, poolId, gasPriceGweiOverride=gasPriceGweiOverride);
-	except:
-		print("Joining pool failed! Are you the owner?");
+	except Exception as e:
+		print("Joining pool failed!");
+		print("Depending on the pool type, this could be due to you not being the pool owner");
+		print("Caught exception:", e);
+	quit();
+
+
+
 
 	print();
 	print("==================================================================")
