@@ -1,0 +1,24 @@
+{
+    "network": "kovan",
+    "gasSpeed": "average",
+    "gasPriceOverride": "",
+    "name": "Python Test Aave Linear Pool",
+    "symbol": "PTLP",
+    "poolType": "AaveLinearPool",
+    "swapFeePercent": "0.0005",
+    "fromInternalBalance": false,
+    "owner": "0x0000000000000000000000000000000000000000",
+    "upperTarget": "2100000000000000000000000",
+    "tokens": {
+        "0xff795577d9ac8bd7d90ee22b6c1703490b6512fd": {
+            "isWrappedToken": false,
+            "initialBalance": "1",
+            "allowance": -1
+        },
+        "0x4811a7bb9061a46753486e5e84b3cd3d668fb596": {
+            "isWrappedToken": true,
+            "initialBalance": "0",
+            "allowance": -1
+        }
+    }
+}
