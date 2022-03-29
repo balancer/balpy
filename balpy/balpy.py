@@ -1160,6 +1160,11 @@ class balpy(object):
 		wethAddress = vault.functions.WETH().call();
 		return(wethAddress);
 
+	def balBalancerHelpersGetVault(self):
+		bh = self.balLoadContract("BalancerHelpers");
+		vaultAddress = bh.functions.vault().call();
+		return(vaultAddress);
+
 	def balVaultGetPoolTokens(self, poolId):
 		vault = self.web3.eth.contract(address=self.deploymentAddresses["Vault"], abi=self.abis["Vault"]);
 		output = vault.functions.getPoolTokens(poolId).call();
