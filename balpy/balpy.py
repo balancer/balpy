@@ -127,17 +127,6 @@ class balpy(object):
 		2:"TRANSFER_INTERNAL",
 		3:"TRANSFER_EXTERNAL"
 	};
-	JoinKind = {
-		"INIT": 0,
-		"EXACT_TOKENS_IN_FOR_BPT_OUT": 1,
-		"TOKEN_IN_FOR_EXACT_BPT_OUT": 2
-	}
-	ExitKind = {
-		"EXACT_BPT_IN_FOR_ONE_TOKEN_OUT": 0,
-		"EXACT_BPT_IN_FOR_TOKENS_OUT": 1,
-		"BPT_IN_FOR_EXACT_TOKENS_OUT": 2
-	}
-
 	def __init__(self, network=None, verbose=True, customConfigFile=None):
 		super(balpy, self).__init__();
 
