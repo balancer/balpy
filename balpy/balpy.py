@@ -10,6 +10,7 @@ import sys
 import pkgutil
 from decimal import *
 from functools import cache
+import traceback
 
 # low level web3
 from web3 import Web3, middleware
@@ -25,6 +26,20 @@ from multicaller import multicaller
 from . import balancerErrors as be
 from .enums.stablePoolJoinExitKind import StablePoolJoinKind, StablePhantomPoolJoinKind, StablePoolExitKind
 from .enums.weightedPoolJoinExitKind import WeightedPoolJoinKind, WeightedPoolExitKind
+
+class Suppressor(object):
+    def __enter__(self):
+        self.stdout = sys.stdout
+        self.stderr = sys.stderr
+        sys.stdout = self
+        sys.stderr = self
+    def __exit__(self, type, value, traceback):
+        sys.stdout = self.stdout
+        sys.stderr = self.stderr
+        if type is not None:
+            a=0;
+            # Do normal exception handling
+    def write(self, x): pass
 
 class balpy(object):
 	
@@ -983,9 +998,11 @@ class balpy(object):
 		
 		# PoolRegistered event lives in the Vault
 		vault = self.balLoadContract("Vault");
-		logs = vault.events.PoolRegistered().processReceipt(receipt);
-		poolId = logs[0]['args']['poolId'].hex();
-		self.GOOD("\nDon't worry about that ^ warning, everything's fine :)");
+
+		with Suppressor():
+			logs = vault.events.PoolRegistered().processReceipt(receipt);
+			poolId = logs[0]['args']['poolId'].hex();
+
 		print("Your pool ID is:");
 		print("\t0x" + str(poolId));
 		return(poolId);
