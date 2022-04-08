@@ -1,6 +1,7 @@
 import balpy
 import sys
 import os
+import jstyleson
 import json
 
 def main():
@@ -15,7 +16,7 @@ def main():
 		quit();
 
 	with open(pathToJoin) as f:
-		join = json.load(f)
+		join = jstyleson.load(f)
 
 	gasFactor = 1.05;
 	gasSpeed = "average";
@@ -54,7 +55,12 @@ def main():
 	print("===============================================================")
 	print();
 
-	txHash = bal.balJoinPoolExactIn(join, gasPriceGweiOverride=gasPriceGweiOverride);
+	query = False;
+	output = bal.balJoinPool(join, query=query);
+
+	if query:
+		print("queryJoin results:")
+		print(json.dumps(output,indent=4));
 
 if __name__ == '__main__':
 	main();
