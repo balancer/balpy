@@ -2,6 +2,8 @@
     "network": "kovan",
     "poolId": "0xd921811bdeb2fd219e08bcc30b7918ae62cfee600001000000000000000000d0",
     "fromInternalBalance": false,
+    "joinKind": "EXACT_TOKENS_IN_FOR_BPT_OUT",
+    "slippageTolerancePercent": "1.0",
     "tokens": {
         "0xAf9ac3235be96eD496db7969f60D354fe5e426B0": {
             "amount": 10.5,
