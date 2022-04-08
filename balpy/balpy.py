@@ -11,16 +11,20 @@ import pkgutil
 from decimal import *
 from functools import cache
 
-# web3 
+# low level web3
 from web3 import Web3, middleware
 from web3.gas_strategies.time_based import glacial_gas_price_strategy, slow_gas_price_strategy, medium_gas_price_strategy, fast_gas_price_strategy
 from web3.middleware import geth_poa_middleware
 from web3._utils.abi import get_abi_output_types
-
 import eth_abi
-from multicaller import multicaller
-from . import balancerErrors as be
 
+# high level web3
+from multicaller import multicaller
+
+# balpy modules
+from . import balancerErrors as be
+from .enums.stablePoolJoinExitKind import StablePoolJoinKind, StablePhantomPoolJoinKind, StablePoolExitKind
+from .enums.weightedPoolJoinExitKind import WeightedPoolJoinKind, WeightedPoolExitKind
 
 class balpy(object):
 	
@@ -321,17 +325,6 @@ class balpy(object):
 			gasPriceGwei = gasPriceGweiOverride;
 		else:
 			gasPriceGwei = self.getGasPrice(gasSpeed);
-			# #rinkeby, kovan gas strategy
-			# if chainIdNetwork in [4, 42]:
-			# 	gasPriceGwei = 2;
-
-			# # polygon gas strategy
-			# elif chainIdNetwork == 137:
-			# 	gasPriceGwei = self.getGasPricePolygon(gasSpeed);
-
-			# #mainnet gas strategy
-			# else:
-			# 	gasPriceGwei = self.getGasPriceEtherscanGwei(gasSpeed);
 		
 		print("\tGas Estimate:\t", gasEstimate);
 		print("\tGas Price:\t", gasPriceGwei, "Gwei");
@@ -1008,32 +1001,110 @@ class balpy(object):
 		print("\t0x" + str(poolId));
 		return(poolId);
 
-	def balJoinPoolExactIn(self, joinDescription, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
-		(sortedTokens, checksumTokens) = self.balSortTokens(list(joinDescription["tokens"].keys()));
-		amountsBySortedTokens = [joinDescription["tokens"][token]["amount"] for token in sortedTokens];
-		rawAmounts = self.balConvertTokensToWei(sortedTokens, amountsBySortedTokens);
+	def balFindPoolFactory(self, poolId):
+		contractNames = self.deploymentAddresses.keys();
+		factoryNames = [c for c in contractNames if "Factory" in c];
 
-		userDataEncoded = eth_abi.encode_abi(	['uint256', 'uint256[]'],
-												[self.JoinKind["EXACT_TOKENS_IN_FOR_BPT_OUT"], rawAmounts]);
-		joinPoolRequestTuple = (checksumTokens, rawAmounts, userDataEncoded.hex(), joinDescription["fromInternalBalance"]);
+		self.mc.reset();
+		for factoryName in factoryNames:
+			factory = self.balLoadContract(factoryName);
+			poolAddress = self.balPooldIdToAddress(poolId);
+			self.mc.addCall(factory.address, factory.abi, "isPoolFromFactory", args=[poolAddress]);
+		data = self.mc.execute();
+
+		foundFactoryName = None;
+		numFound = 0;
+		for f,d in zip(factoryNames, data):
+			if d[0]:
+				foundFactoryName = f;
+				numFound += 1;
+
+		if numFound == 1:
+			return(foundFactoryName);
+		else:
+			self.ERROR("Was expecting 1 factory, got " + str(numFound));
+			self.ERROR("Checked the following factories:\n\t\t" + "\n\t\t".join(factoryNames));
+			return(None);
+
+	def balGetJoinKindEnum(self, poolId, joinKind):
+		factoryName = self.balFindPoolFactory(poolId);
+
+		usingWeighted = factoryName in ["WeightedPoolFactory", "WeightedPool2TokensFactory", "LiquidityBootstrappingPoolFactory", "InvestmentPoolFactory"];
+		usingStable = factoryName in ["StablePoolFactory", "MetaStablePoolFactory"];
+		usingStablePhantom = factoryName in ["StablePhantomPoolFactory"];
+
+		if usingWeighted:
+			joinKindEnum = WeightedPoolJoinKind[joinKind];
+		elif usingStable:
+			joinKindEnum = StablePoolJoinKind[joinKind];
+		elif usingStablePhantom:
+			joinKindEnum = StablePhantomPoolJoinKind[joinKind];
+		else:
+			self.ERROR("PoolType " + str(factoryName) + " not supported for JoinKind: " + joinKind)
+			return(None);
+		return(joinKindEnum);
+
+	def balGetTokensAndAmounts(self, joinDescription):
+		(sortedTokens, checksumTokens) = self.balSortTokens(list(joinDescription["tokens"].keys()));
+		amountKey = "amount";
+		if not amountKey in joinDescription["tokens"][list(joinDescription["tokens"].keys())[0]].keys():
+			amountKey = "initialBalance";
+		amountsBySortedTokens = [joinDescription["tokens"][token][amountKey] for token in sortedTokens];
+		maxAmountsIn = self.balConvertTokensToWei(sortedTokens, amountsBySortedTokens);
+		return(checksumTokens, maxAmountsIn);
+
+	def balDoJoinPool(self, poolId, address, joinPoolRequestTuple, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 		vault = self.balLoadContract("Vault");
-		joinPoolFunction = vault.functions.joinPool(joinDescription["poolId"],
-												self.web3.toChecksumAddress(self.web3.eth.default_account),
-												self.web3.toChecksumAddress(self.web3.eth.default_account),
-												joinPoolRequestTuple);
+		joinPoolFunction = vault.functions.joinPool(poolId, address, address, joinPoolRequestTuple);
 		tx = self.buildTx(joinPoolFunction, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
 		print("Transaction Generated!");
 		txHash = self.sendTx(tx);
 		return(txHash);
 
-	def balJoinPoolTokenInForExactBptOut(self, joinDescription, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
-		(sortedTokens, checksumTokens) = self.balSortTokens(list(joinDescription["tokens"].keys()));
-		amountsBySortedTokens = [joinDescription["tokens"][token]["amount"] for token in sortedTokens];
-		rawAmounts = self.balConvertTokensToWei(sortedTokens, amountsBySortedTokens);
+	def balDoQueryJoinPool(self, poolId, address, joinPoolRequestTuple):
+		bh = self.balLoadContract("BalancerHelpers");
+		(bptOut, amountsIn) = bh.functions.queryJoin(poolId, address, address, joinPoolRequestTuple).call();
+		return((bptOut, amountsIn));
+
+	def balFormatJoinPoolInit(self, joinDescription):
+		(checksumTokens, maxAmountsIn) = self.balGetTokensAndAmounts(copy.deepcopy(joinDescription));
+		poolId = joinDescription["poolId"];
+		joinKindEnum = self.balGetJoinKindEnum(poolId, joinDescription["joinKind"]);
+		userDataEncoded = eth_abi.encode_abi(	['uint256', 'uint256[]'],
+												[int(joinKindEnum), maxAmountsIn]);
+		address = self.web3.toChecksumAddress(self.web3.eth.default_account);
+		joinPoolRequestTuple = (checksumTokens, maxAmountsIn, userDataEncoded.hex(), joinDescription["fromInternalBalance"]);
+		return(poolId, address, joinPoolRequestTuple);
+
+	def balFormatJoinPoolExactTokensInForBptOut(self, joinDescription):
+		(checksumTokens, maxAmountsIn) = self.balGetTokensAndAmounts(copy.deepcopy(joinDescription));
+		poolId = joinDescription["poolId"];
+		joinKindEnum = self.balGetJoinKindEnum(poolId, joinDescription["joinKind"]);
+		userDataEncoded = eth_abi.encode_abi(	['uint256', 'uint256[]'],
+												[int(joinKindEnum), maxAmountsIn]);
+		address = self.web3.toChecksumAddress(self.web3.eth.default_account);
+		joinPoolRequestTuple = (checksumTokens, maxAmountsIn, userDataEncoded.hex(), joinDescription["fromInternalBalance"]);
+		return(poolId, address, joinPoolRequestTuple);
+
+	def balFormatJoinPoolAllTokensInForExactBptOut(self, joinDescription):
+		(checksumTokens, maxAmountsIn) = self.balGetTokensAndAmounts(copy.deepcopy(joinDescription));
+		poolId = joinDescription["poolId"];
+		poolAddress = self.balPooldIdToAddress(poolId);
+		bptAmountOut = self.balConvertTokensToWei([poolAddress], [joinDescription["bptAmountOut"]])[0];
+
+		joinKindEnum = self.balGetJoinKindEnum(poolId, joinDescription["joinKind"]);
+		userDataEncoded = eth_abi.encode_abi(	['uint256', 'uint256'],
+												[int(joinKindEnum), bptAmountOut]);
+		address = self.web3.toChecksumAddress(self.web3.eth.default_account);
+		joinPoolRequestTuple = (checksumTokens, maxAmountsIn, userDataEncoded.hex(), joinDescription["fromInternalBalance"]);
+		return(poolId, address, joinPoolRequestTuple);
+
+	def balFormatJoinPoolTokenInForExactBptOut(self, joinDescription):
+		(checksumTokens, maxAmountsIn) = self.balGetTokensAndAmounts(copy.deepcopy(joinDescription));
 
 		index = -1;
 		counter = -1;
-		for amt in rawAmounts:
+		for amt in maxAmountsIn:
 			counter += 1;
 			if amt > 0:
 				if index == -1:
@@ -1045,19 +1116,64 @@ class balpy(object):
 			self.ERROR("No tokens have amounts. You must have one token with a non-zero amount!");
 			return(False);
 
-		userDataEncoded = eth_abi.encode_abi(	['uint256', 'uint256', 'uint256'],
-												[self.JoinKind["TOKEN_IN_FOR_EXACT_BPT_OUT"], joinDescription["minBptOut"], index]);
+		poolId = joinDescription["poolId"];
+		poolAddress = self.balPooldIdToAddress(poolId);
+		bptAmountOut = self.balConvertTokensToWei([poolAddress], [joinDescription["bptAmountOut"]])[0];
 
-		joinPoolRequestTuple = (checksumTokens, rawAmounts, userDataEncoded.hex(), joinDescription["fromInternalBalance"]);
-		vault = self.balLoadContract("Vault");
-		joinPoolFunction = vault.functions.joinPool(joinDescription["poolId"],
-												self.web3.toChecksumAddress(self.web3.eth.default_account),
-												self.web3.toChecksumAddress(self.web3.eth.default_account),
-												joinPoolRequestTuple);
-		tx = self.buildTx(joinPoolFunction, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
-		print("Transaction Generated!");
-		txHash = self.sendTx(tx);
-		return(txHash);
+		joinKindEnum = self.balGetJoinKindEnum(poolId, joinDescription["joinKind"]);
+		userDataEncoded = eth_abi.encode_abi(	['uint256', 'uint256', 'uint256'],
+												[int(joinKindEnum), bptAmountOut, index]);
+
+		address = self.web3.toChecksumAddress(self.web3.eth.default_account);
+		joinPoolRequestTuple = (checksumTokens, maxAmountsIn, userDataEncoded.hex(), joinDescription["fromInternalBalance"]);
+
+		return(poolId, address, joinPoolRequestTuple);
+
+	def balJoinPool(self, joinDescription, query=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		joinKind = joinDescription["joinKind"];
+		poolId = None;
+		address = None;
+		joinPoolRequestTuple = None;
+
+		if joinKind == "INIT":
+			(poolId, address, joinPoolRequestTuple) = self.balFormatJoinPoolInit(joinDescription);
+		elif joinKind == "EXACT_TOKENS_IN_FOR_BPT_OUT":
+			(poolId, address, joinPoolRequestTuple) = self.balFormatJoinPoolExactTokensInForBptOut(joinDescription);
+		elif joinKind == "TOKEN_IN_FOR_EXACT_BPT_OUT":
+			tempJoinDescription = copy.deepcopy(joinDescription);
+			if query:
+				for token in tempJoinDescription["tokens"].keys():
+					if tempJoinDescription["tokens"][token]["amount"] == 0.0:
+						tempJoinDescription["tokens"][token]["amount"] = self.INFINITE;
+			(poolId, address, joinPoolRequestTuple) = self.balFormatJoinPoolTokenInForExactBptOut(tempJoinDescription);
+		elif joinKind == "ALL_TOKENS_IN_FOR_EXACT_BPT_OUT":
+			tempJoinDescription = copy.deepcopy(joinDescription);
+			if query:
+				for token in tempJoinDescription["tokens"].keys():
+					tempJoinDescription["tokens"][token]["amount"] = self.INFINITE;
+			(poolId, address, joinPoolRequestTuple) = self.balFormatJoinPoolAllTokensInForExactBptOut(tempJoinDescription);
+			print((poolId, address, joinPoolRequestTuple))
+
+		if query:
+			(bptOut, amountsIn) = self.balDoQueryJoinPool(poolId, address, joinPoolRequestTuple);
+			bptAddress = self.balPooldIdToAddress(poolId);
+			outputData = {};
+			outputData["bptOut"] = {
+				"token":bptAddress,
+				"decimals":self.erc20GetDecimals(bptAddress),
+				"amount":bptOut
+			}
+			outputData["amountsIn"] = {};
+			for token, amount in zip(joinPoolRequestTuple[0], amountsIn):
+				outputData["amountsIn"][token] = {
+					"token":token,
+					"decimals":self.erc20GetDecimals(token),
+					"amount":amount
+				}
+			return(outputData);
+		else:
+			txHash = self.balDoJoinPool(poolId, address, joinPoolRequestTuple, gasFactor=gasFactor, gasPriceSpeed=gasPriceSpeed, nonceOverride=nonceOverride, gasEstimateOverride=gasEstimateOverride, gasPriceGweiOverride=gasPriceGweiOverride);
+			return(txHash);
 
 	def balRegisterPoolWithVault(self, poolDescription, poolId, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 		self.WARN("\"balRegisterPoolWithVault\" is deprecated. Please use \"balJoinPoolInit\".")
@@ -1076,24 +1192,8 @@ class balpy(object):
 			phantomBptAddress = self.balPooldIdToAddress(poolId);
 			poolDescription["tokens"][phantomBptAddress] = {"initialBalance":self.MAX_UINT_112}
 
-		(sortedTokens, checksumTokens) = self.balSortTokens(list(poolDescription["tokens"].keys()));
-		initialBalancesBySortedTokens = [poolDescription["tokens"][token]["initialBalance"] for token in sortedTokens];
-
-		rawInitBalances = self.balConvertTokensToWei(sortedTokens, initialBalancesBySortedTokens);
-		initUserDataEncoded = eth_abi.encode_abi(	['uint256', 'uint256[]'], 
-													[self.JoinKind["INIT"], rawInitBalances]);
-
-		#todo replace this code with a join call
-		joinPoolRequestTuple = (checksumTokens, rawInitBalances, initUserDataEncoded.hex(), poolDescription["fromInternalBalance"]);
-		vault = self.balLoadContract("Vault");
-		joinPoolFunction = vault.functions.joinPool(poolId, 
-												self.web3.toChecksumAddress(self.web3.eth.default_account), 
-												self.web3.toChecksumAddress(self.web3.eth.default_account), 
-												joinPoolRequestTuple);
-		tx = self.buildTx(joinPoolFunction, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
-		print("Transaction Generated!");		
-		txHash = self.sendTx(tx);
-		return(txHash);
+		poolDescription["joinKind"] = "INIT";
+		return(self.balJoinPool(poolDescription));
 
 	def balLinearPoolInitJoin(self, poolDescription, poolId, slippageTolerancePercent=1, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 
