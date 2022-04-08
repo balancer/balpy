@@ -1,0 +1,23 @@
+{
+    "network": "kovan",
+    "poolId": "0xd921811bdeb2fd219e08bcc30b7918ae62cfee600001000000000000000000d0",
+    "fromInternalBalance": false,
+    "joinKind": "TOKEN_IN_FOR_EXACT_BPT_OUT",
+    "slippageTolerancePercent": "1.0",
+    "bptAmountOut": "0.1",
+    // Even though this is a single token join, you must still pass all token addresses for proper indexing
+    "tokens": {
+        "0xAf9ac3235be96eD496db7969f60D354fe5e426B0": {
+            "amount": "10.5",
+            "allowance": "-1"
+        },
+        "0x22ee6c3B011fACC530dd01fe94C58919344d6Db5": {
+            "amount": "0",
+            "allowance": "-1"
+        },
+        "0xdFCeA9088c8A88A76FF74892C1457C17dfeef9C1": {
+            "amount": "0",
+            "allowance": "-1"
+        }
+    }
+}
