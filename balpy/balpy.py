@@ -1492,12 +1492,26 @@ class balpy(object):
 					decodedPoolData["swapEnabledOnStart"],
 					int(decodedPoolData["managementSwapFeePercentage"])];
 			structInConstructor = True;
+		elif poolType == "StablePhantomPool":
+			args = [
+				self.deploymentAddresses["Vault"],
+				decodedPoolData["name"],
+				decodedPoolData["symbol"],
+				decodedPoolData["tokens"],
+				decodedPoolData["rateProviders"],
+				decodedPoolData["tokenRateCacheDurations"],
+				int(decodedPoolData["amplificationParameter"]),
+				int(decodedPoolData["swapFeePercentage"]),
+				int(pauseWindowDurationSec),
+				int(bufferPeriodDurationSec),
+				decodedPoolData["owner"]];
+			structInConstructor = True
 		else:
 			self.ERROR("PoolType " + poolType + " not found!")
 			return(False);
 
 		# encode constructor data
-		poolContract = self.balLoadArbitraryContract(address, abi);
+		poolContract = self.balLoadArbitraryContract(address, self.mc.listToString(poolAbi));
 		if structInConstructor:
 			args = (tuple(args),)
 		data = poolContract._encode_constructor_data(args=args);
