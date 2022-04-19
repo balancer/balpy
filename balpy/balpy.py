@@ -1510,7 +1510,7 @@ class balpy(object):
 			return(False);
 
 		# encode constructor data
-		poolContract = self.balLoadArbitraryContract(address, abi);
+		poolContract = self.balLoadArbitraryContract(address, self.mc.listToString(poolAbi));
 		if structInConstructor:
 			args = (tuple(args),)
 		data = poolContract._encode_constructor_data(args=args);
