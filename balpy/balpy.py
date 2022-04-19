@@ -125,6 +125,9 @@ class balpy(object):
 							},
 							"AaveLinearPoolFactory": {
 								"directory":"20211208-aave-linear-pool"
+							},
+							"ERC4626LinearPoolFactory": {
+								"directory":"20220304-erc4626-linear-pool"
 							}
 						};
 
@@ -1504,7 +1507,29 @@ class balpy(object):
 				int(pauseWindowDurationSec),
 				int(bufferPeriodDurationSec),
 				decodedPoolData["owner"]];
-			structInConstructor = True
+			structInConstructor = True;
+		elif poolType == "AaveLinearPool":
+			args = [self.deploymentAddresses["Vault"],
+				decodedPoolData["name"],
+				decodedPoolData["symbol"],
+				decodedPoolData["mainToken"],
+				decodedPoolData["wrappedToken"],
+				int(decodedPoolData["upperTarget"]),
+				int(decodedPoolData["swapFeePercentage"]),
+				int(pauseWindowDurationSec),
+				int(bufferPeriodDurationSec),
+				decodedPoolData["owner"]];
+		elif poolType == "ERC4626LinearPool":
+			args = [self.deploymentAddresses["Vault"],
+				decodedPoolData["name"],
+				decodedPoolData["symbol"],
+				decodedPoolData["mainToken"],
+				decodedPoolData["wrappedToken"],
+				int(decodedPoolData["upperTarget"]),
+				int(decodedPoolData["swapFeePercentage"]),
+				int(pauseWindowDurationSec),
+				int(bufferPeriodDurationSec),
+				decodedPoolData["owner"]];
 		else:
 			self.ERROR("PoolType " + poolType + " not found!")
 			return(False);
