@@ -1492,6 +1492,19 @@ class balpy(object):
 					decodedPoolData["swapEnabledOnStart"],
 					int(decodedPoolData["managementSwapFeePercentage"])];
 			structInConstructor = True;
+		elif poolType == "StablePhantomPool":
+			args = [self.deploymentAddresses["Vault"],
+					decodedPoolData["name"],
+					decodedPoolData["symbol"],
+					decodedPoolData["tokens"],
+					decodedPoolData["rateProviders"],
+					decodedPoolData["tokenRateCacheDurations"],
+					int(decodedPoolData["amplificationParameter"]),
+					int(decodedPoolData["swapFeePercentage"]),
+					int(pauseWindowDurationSec),
+					int(bufferPeriodDurationSec),
+					decodedPoolData["owner"]];
+			structInConstructor = True;
 		else:
 			self.ERROR("PoolType " + poolType + " not found!")
 			return(False);
