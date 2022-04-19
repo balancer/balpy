@@ -1493,8 +1493,7 @@ class balpy(object):
 					int(decodedPoolData["managementSwapFeePercentage"])];
 			structInConstructor = True;
 		elif poolType == "StablePhantomPool":
-			args = [
-				self.deploymentAddresses["Vault"],
+			args = [self.deploymentAddresses["Vault"],
 				decodedPoolData["name"],
 				decodedPoolData["symbol"],
 				decodedPoolData["tokens"],
