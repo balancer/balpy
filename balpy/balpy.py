@@ -192,10 +192,6 @@ class balpy(object):
 
 		self.endpoint = endpoint;
 		self.web3 = Web3(Web3.HTTPProvider(endpoint));
-		self.mc = multicaller.multicaller(	_chainId=self.networkParams[self.network]["id"],
-											_web3=self.web3,
-											_maxRetries=5,
-											_verbose=False);
 
 		acct = self.web3.eth.account.privateKeyToAccount(self.privateKey);
 		self.web3.eth.default_account = acct.address;
@@ -251,6 +247,10 @@ class balpy(object):
 				currNetworkParams["balFrontend"] = customConfig["networkParams"]["balFrontend"];
 			self.networkParams[self.network] = currNetworkParams;
 
+		self.mc = multicaller.multicaller(	_chainId=self.networkParams[self.network]["id"],
+											_web3=self.web3,
+											_maxRetries=5,
+											_verbose=False);
 		for contractType in self.contractDirectories.keys():
 			subdir = self.contractDirectories[contractType]["directory"];
 
