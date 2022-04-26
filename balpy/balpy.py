@@ -216,7 +216,7 @@ class balpy(object):
 
 			# load custom config file if it exists, quit if not
 			if not os.path.isfile(customConfigFile):
-				bal.ERROR("Custom config file" + customConfigFile + " not found!");
+				self.ERROR("Custom config file" + customConfigFile + " not found!");
 				quit();
 			else:
 				with open(customConfigFile,'r') as f:
@@ -230,7 +230,7 @@ class balpy(object):
 				if not req in customConfig.keys():
 					hasAllRequirements = False;
 			if not hasAllRequirements:
-				bal.ERROR("Not all custom fields are in the custom config!");
+				self.ERROR("Not all custom fields are in the custom config!");
 				print("You must include:");
 				for req in requiredFields:
 					print("\t"+req);
