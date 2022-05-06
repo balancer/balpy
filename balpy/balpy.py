@@ -41,6 +41,20 @@ class Suppressor(object):
             # Do normal exception handling
     def write(self, x): pass
 
+def getLongestStringLength(array):
+	maxLength = 0;
+	for a in array:
+		if len(a) > maxLength:
+			maxLength = len(a);
+	return(maxLength);
+
+def padWithSpaces(myString, endLength):
+	stringLength = len(myString);
+	extraSpace = endLength - stringLength;
+
+	outputString = myString + "".join([" "]*extraSpace);
+	return(outputString);
+
 class balpy(object):
 	
 	"""
@@ -99,6 +113,9 @@ class balpy(object):
 							"BalancerHelpers": {
 								"directory":"20210418-vault"
 							},
+							"Authorizer": {
+								"directory":"20210418-authorizer"
+							},
 							"WeightedPoolFactory": {
 								"directory":"20210418-weighted-pool"
 							},
@@ -116,9 +133,6 @@ class balpy(object):
 							},
 							"InvestmentPoolFactory": {
 								"directory":"20210907-investment-pool"
-							},
-							"Authorizer": {
-								"directory":"20210418-authorizer"
 							},
 							"StablePhantomPoolFactory": {
 								"directory":"20211208-stable-phantom-pool"
@@ -1887,3 +1901,36 @@ class balpy(object):
 				chainDataOut[pool]["tokens"][token]["balance"] = str(Decimal(rawBalance) * Decimal(10**(-decimals)));
 
 		return(chainDataOut);
+
+	def generateDeploymentsDocsTable(self):
+		outputString = "";
+		contracts = [];
+		addresses = [];
+
+		network = self.network;
+		blockExplorer = "https://" + self.networkParams[network]["blockExplorerUrl"];
+		outputString += "{{% tab title=\"" + network.title() + "\" %}}\n"
+
+		for contractType in self.deploymentAddresses:
+			contracts.append(contractType);
+
+			address = self.deploymentAddresses[contractType];
+			etherscanPage = blockExplorer + "/address/" + address;
+			addresses.append("[" + address + "](" + etherscanPage + ")");
+
+		longestContractStringLength = getLongestStringLength(contracts);
+		longestAddressStringLength = getLongestStringLength(addresses);
+
+		contractDashLine = "".join(["-"]*longestContractStringLength);
+		addressDashLine = "".join(["-"]*longestAddressStringLength);
+
+		contracts = ["Contracts", contractDashLine] + contracts;
+		addresses = ["Addresses", addressDashLine] + addresses;
+
+		for (c,a) in zip(contracts, addresses):
+			cPadded = padWithSpaces(c, longestContractStringLength);
+			aPadded = padWithSpaces(a, longestAddressStringLength);
+			line = "| " + cPadded + " | " + aPadded + " |\n"
+			outputString += line
+		outputString += "\n{{% endtab %}}"
+		return(outputString)
