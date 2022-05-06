@@ -142,6 +142,9 @@ class balpy(object):
 							},
 							"ERC4626LinearPoolFactory": {
 								"directory":"20220304-erc4626-linear-pool"
+							},
+							"NoProtocolFeeLiquidityBootstrappingPoolFactory": {
+								"directory":"20211202-no-protocol-fee-lbp"
 							}
 						};
 
@@ -835,8 +838,15 @@ class balpy(object):
 													owner);
 		return(createFunction);
 
+
 	def balCreateFnLBPoolFactory(self, poolData):
-		factory = self.balLoadContract("LiquidityBootstrappingPoolFactory");
+		return(self.balCreateFnLBPFactory(poolData, "LiquidityBootstrappingPoolFactory"));
+
+	def balCreateFnNoProtocolFeeLiquidityBootstrappingPoolFactory(self, poolData):
+		return(self.balCreateFnLBPFactory(poolData, "NoProtocolFeeLiquidityBootstrappingPoolFactory"));
+
+	def balCreateFnLBPFactory(self, poolData, factoryName):
+		factory = self.balLoadContract(factoryName);
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
 
 		if not self.balWeightsEqualOne(poolData):
@@ -937,8 +947,8 @@ class balpy(object):
 													owner);
 		return(createFunction);
 
-	def balCreateFnAaveLinearPoolFactory(self, poolData):
-		factory = self.balLoadContract("AaveLinearPoolFactory");
+	def balCreateFnLinearPoolFactory(self, poolData, factoryName):
+		factory = self.balLoadContract(factoryName);
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
 		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
 		owner = self.balSetOwner(poolData);
@@ -965,6 +975,12 @@ class balpy(object):
 													owner);
 		return(createFunction);
 
+	def balCreateFnAaveLinearPoolFactory(self, poolData):
+		return(self.balCreateFnLinearPoolFactory(poolData, "AaveLinearPoolFactory"));
+
+	def balCreateFnERC4626LinearPoolFactory(self, poolData):
+		return(self.balCreateFnLinearPoolFactory(poolData, "ERC4626LinearPoolFactory"));
+
 	def balCreatePoolInFactory(self, poolDescription, gasFactor, gasPriceSpeed, nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 		createFunction = None;
 		poolFactoryName = poolDescription["poolType"] + "Factory";
@@ -988,6 +1004,10 @@ class balpy(object):
 			createFunction = self.balCreateFnStablePhantomPoolFactory(poolDescription);
 		if poolFactoryName == "AaveLinearPoolFactory":
 			createFunction = self.balCreateFnAaveLinearPoolFactory(poolDescription);
+		if poolFactoryName == "ERC4626LinearPoolFactory":
+			createFunction = self.balCreateFnERC4626LinearPoolFactory(poolDescription);
+		if poolFactoryName == "NoProtocolFeeLiquidityBootstrappingPoolFactory":
+			createFunction = self.balCreateFnNoProtocolFeeLiquidityBootstrappingPoolFactory(poolDescription);
 		if createFunction is None:
 			print("No pool factory found with name:", poolFactoryName);
 			print("Currently supported pool types are:");
@@ -999,6 +1019,8 @@ class balpy(object):
 			print("\tInvestmentPool");
 			print("\tStablePhantomPool");
 			print("\tAaveLinearPool");
+			print("\tERC4626LinearPoolFactory");
+			print("\tNoProtocolFeeLiquidityBootstrappingPoolFactory");
 			return(False);
 
 		if not createFunction:
@@ -1052,7 +1074,7 @@ class balpy(object):
 	def balGetJoinKindEnum(self, poolId, joinKind):
 		factoryName = self.balFindPoolFactory(poolId);
 
-		usingWeighted = factoryName in ["WeightedPoolFactory", "WeightedPool2TokensFactory", "LiquidityBootstrappingPoolFactory", "InvestmentPoolFactory"];
+		usingWeighted = factoryName in ["WeightedPoolFactory", "WeightedPool2TokensFactory", "LiquidityBootstrappingPoolFactory", "InvestmentPoolFactory", "NoProtocolFeeLiquidityBootstrappingPoolFactory"];
 		usingStable = factoryName in ["StablePoolFactory", "MetaStablePoolFactory"];
 		usingStablePhantom = factoryName in ["StablePhantomPoolFactory"];
 
