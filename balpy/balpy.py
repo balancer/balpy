@@ -238,7 +238,6 @@ class balpy(object):
 			else:
 				with open(customConfigFile,'r') as f:
 					customConfig = json.load(f);
-			# print(json.dumps(customConfig, indent=4))
 
 			# ensure all required fields are in the customConfig
 			requiredFields = ["contracts", "networkParams"]
@@ -284,7 +283,7 @@ class balpy(object):
 			# get deployment address for given network
 			try:
 				if usingCustomConfig:
-					currAddress = customConfig["contracts"][contractType];
+					currAddress = self.web3.toChecksumAddress(customConfig["contracts"][contractType]);
 				else:
 					deploymentPath = os.path.join('deployments', subdir, "output", self.network + '.json');
 					f = pkgutil.get_data(__name__, deploymentPath).decode();
