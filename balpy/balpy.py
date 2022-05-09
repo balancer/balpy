@@ -97,6 +97,7 @@ class balpy(object):
 						"ropsten":	{"id":3,		"blockExplorerUrl":"ropsten.etherscan.io"													},
 						"rinkeby":	{"id":4,		"blockExplorerUrl":"rinkeby.etherscan.io"													},
 						"goerli":	{"id":5,		"blockExplorerUrl":"goerli.etherscan.io"													},
+						"optimism":	{"id":10,		"blockExplorerUrl":"optimistic.etherscan.io"													},
 						"kovan":	{"id":42,		"blockExplorerUrl":"kovan.etherscan.io",			"balFrontend":"kovan.balancer.fi/#/"	},
 						"polygon":	{"id":137,		"blockExplorerUrl":"polygonscan.com",				"balFrontend":"polygon.balancer.fi/#/"	},
 						"fantom":	{"id":250,		"blockExplorerUrl":"ftmscan.com",					"balFrontend":"app.beets.fi/#/"			},
@@ -107,6 +108,7 @@ class balpy(object):
 	abis = {};
 	deploymentAddresses = {};
 	contractDirectories = {
+							# ===== Vault Infra =====
 							"Vault": {
 								"directory":"20210418-vault"
 							},
@@ -116,6 +118,8 @@ class balpy(object):
 							"Authorizer": {
 								"directory":"20210418-authorizer"
 							},
+
+							# ====== Pools and Associated Contracts ======
 							"WeightedPoolFactory": {
 								"directory":"20210418-weighted-pool"
 							},
@@ -131,6 +135,9 @@ class balpy(object):
 							"MetaStablePoolFactory": {
 								"directory":"20210727-meta-stable-pool"
 							},
+							"WstETHRateProvider": {
+								"directory":"20210812-wsteth-rate-provider"
+							},
 							"InvestmentPoolFactory": {
 								"directory":"20210907-investment-pool"
 							},
@@ -145,6 +152,94 @@ class balpy(object):
 							},
 							"NoProtocolFeeLiquidityBootstrappingPoolFactory": {
 								"directory":"20211202-no-protocol-fee-lbp"
+							},
+
+							# ===== Relayers and Infra =====
+							# TODO: update dir to 20220318-batch-relayer-v2 once deployed on all networks
+							"BalancerRelayer": {
+								"directory":"20211203-batch-relayer"
+							},
+							"BatchRelayerLibrary": {
+								"directory":"20211203-batch-relayer"
+							},
+							"LidoRelayer": {
+								"directory":"20210812-lido-relayer"
+							},
+
+							# ===== Liquidity Mining Infra =====
+							"MerkleRedeem": {
+								"directory":"20210811-ldo-merkle"
+							},
+							"MerkleOrchard": {
+								"directory":"20211012-merkle-orchard"
+							},
+
+							# ===== Gauges and Infra =====
+							"AuthorizerAdaptor": {
+								"directory":"20220325-authorizer-adaptor"
+							},
+							"BALTokenHolderFactory": {
+								"directory":"20220325-bal-token-holder-factory"
+							},
+							"BalancerTokenAdmin": {
+								"directory":"20220325-balancer-token-admin"
+							},
+							"GaugeAdder": {
+								"directory":"20220325-gauge-adder"
+							},
+							"VotingEscrow": {
+								"directory":"20220325-gauge-controller"
+							},
+							"GaugeController": {
+								"directory":"20220325-gauge-controller"
+							},
+							"BalancerMinter": {
+								"directory":"20220325-gauge-controller"
+							},
+							"LiquidityGaugeFactory": {
+								"directory":"20220325-mainnet-gauge-factory"
+							},
+							"SingleRecipientGaugeFactory": {
+								"directory":"20220325-single-recipient-gauge-factory"
+							},
+							"VotingEscrowDelegation": {
+								"directory":"20220325-ve-delegation"
+							},
+							"VotingEscrowDelegationProxy": {
+								"directory":"20220325-ve-delegation"
+							},
+							"veBALDeploymentCoordinator": {
+								"directory":"20220325-veBAL-deployment-coordinator"
+							},
+							"ArbitrumRootGaugeFactory": {
+								"directory":"20220413-arbitrum-root-gauge-factory"
+							},
+							"PolygonRootGaugeFactory": {
+								"directory":"20220413-polygon-root-gauge-factory"
+							},
+							"ChildChainStreamer": {
+								"directory":"20220413-child-chain-gauge-factory"
+							},
+							"ChildChainLiquidityGaugeFactory": {
+								"directory":"20220413-child-chain-gauge-factory"
+							},
+							"veBALL2GaugeSetupCoordinator": {
+								"directory":"20220415-veBAL-L2-gauge-setup-coordinator"
+							},
+							"veBALGaugeFixCoordinator": {
+								"directory":"20220418-veBAL-gauge-fix-coordinator"
+							},
+							"FeeDistributor": {
+								"directory":"20220420-fee-distributor"
+							},
+							"SmartWalletChecker": {
+								"directory":"20220420-smart-wallet-checker"
+							},
+							"SmartWalletCheckerCoordinator": {
+								"directory":"20220421-smart-wallet-checker-coordinator"
+							},
+							"DistributionScheduler": {
+								"directory":"20220422-distribution-scheduler"
 							}
 						};
 
@@ -162,7 +257,7 @@ class balpy(object):
 		2:"TRANSFER_INTERNAL",
 		3:"TRANSFER_EXTERNAL"
 	};
-	def __init__(self, network=None, verbose=True, customConfigFile=None):
+	def __init__(self, network=None, verbose=True, customConfigFile=None, manualEnv={}):
 		super(balpy, self).__init__();
 
 		self.verbose = verbose;
@@ -183,10 +278,21 @@ class balpy(object):
 		# set high decimal precision
 		getcontext().prec = 28;
 
+		# grab parameters from env vars if they exist
 		self.infuraApiKey = 		os.environ.get(self.envVarInfura);
 		self.customRPC = 			os.environ.get(self.envVarCustomRPC);
 		self.etherscanApiKey = 		os.environ.get(self.envVarEtherscan);
 		self.privateKey =  			os.environ.get(self.envVarPrivate);
+
+		# override params with manually passed args if they exist
+		if "infuraApiKey" in manualEnv.keys():
+			self.infuraApiKey = manualEnv["infuraApiKey"];
+		if "customRPC" in manualEnv.keys():
+			self.customRPC = manualEnv["customRPC"];
+		if "etherscanApiKey" in manualEnv.keys():
+			self.etherscanApiKey = manualEnv["etherscanApiKey"];
+		if "privateKey" in manualEnv.keys():
+			self.privateKey = manualEnv["privateKey"];
 
 		if self.infuraApiKey is None and self.customRPC is None:
 			self.ERROR("You need to add your KEY_API_INFURA or BALPY_CUSTOM_RPC environment variables\n");
@@ -267,6 +373,10 @@ class balpy(object):
 											_web3=self.web3,
 											_maxRetries=5,
 											_verbose=False);
+
+		#reset for the edge case in which we're iterating through multiple networks
+		self.deploymentAddresses = {};
+		missingContracts = [];
 		for contractType in self.contractDirectories.keys():
 			subdir = self.contractDirectories[contractType]["directory"];
 
@@ -291,13 +401,16 @@ class balpy(object):
 					currAddress = self.web3.toChecksumAddress(currData[contractType]);
 				self.deploymentAddresses[contractType] = currAddress;
 			except BaseException as error:
-				self.WARN('{} not found for network {}'.format(contractType, self.network))
-				self.WARN('{}'.format(error))
+				missingContracts.append(contractType);
 
-		print("Available contracts on", self.network)
+		print("Available contracts on", self.network);
 		for element in self.deploymentAddresses.keys():
 			address = self.deploymentAddresses[element];
-			print("\t" + address + "\t" + element)
+			print("\t" + address + "\t" + element);
+
+		print();
+		print("Missing contracts on", self.network + ": [" + ", ".join(missingContracts) + "]");
+
 		print();
 		print("==============================================================");
 
