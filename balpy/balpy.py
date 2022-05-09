@@ -2043,7 +2043,7 @@ class balpy(object):
 
 		network = self.network;
 		blockExplorer = "https://" + self.networkParams[network]["blockExplorerUrl"];
-		outputString += "{{% tab title=\"" + network.title() + "\" %}}\n"
+		outputString += "{% tab title=\"" + network.title() + "\" %}\n"
 
 		for contractType in self.deploymentAddresses:
 			contracts.append(contractType);
@@ -2066,5 +2066,5 @@ class balpy(object):
 			aPadded = padWithSpaces(a, longestAddressStringLength);
 			line = "| " + cPadded + " | " + aPadded + " |\n"
 			outputString += line
-		outputString += "\n{{% endtab %}}"
+		outputString += "\n{% endtab %}"
 		return(outputString)
