@@ -1160,7 +1160,7 @@ class balpy(object):
 
 	def balFindPoolFactory(self, poolId):
 		contractNames = self.deploymentAddresses.keys();
-		factoryNames = [c for c in contractNames if "Factory" in c];
+		factoryNames = [c for c in contractNames if ("Factory" in c) and ("Pool" in c)]; #can't simply use "PoolFactory" b/c of WeightedPool2TokensFactory
 
 		self.mc.reset();
 		for factoryName in factoryNames:
