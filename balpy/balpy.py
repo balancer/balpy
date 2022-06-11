@@ -127,7 +127,7 @@ class balpy(object):
 								"directory":"20210418-weighted-pool"
 							},
 							"StablePoolFactory": {
-								"directory":"20210624-stable-pool"
+								"directory":"20220609-stable-pool-v2"
 							},
 							"LiquidityBootstrappingPoolFactory": {
 								"directory":"20210721-liquidity-bootstrapping-pool"
