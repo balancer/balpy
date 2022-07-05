@@ -250,6 +250,30 @@ class TheGraph(object):
 			print("Got price data:", pricePerBpt)
 		return(pricePerBpt)
 
+	def getPoolsAndTokens(self, batch_size, skips, verbose=False):
+		self.assertInit();
+		query_string = '''
+			query {{
+			  pools(first: {first}, skip: {skip}) {{
+			    id
+			    tokens {{
+			      token
+			      {{
+			        id
+			      }}
+			    }}
+			  }}
+			}}
+		'''
+		formatted_query_string = query_string.format(first=batch_size, skip=skips)
+
+		response = self.client.execute(gql(formatted_query_string));
+		if self.client == "CUSTOM":
+			response = self.callCustomEndpoint(formatted_query_string);
+		else:
+			response = self.client.execute(gql(formatted_query_string))
+		return(response)
+
 def main():
 	
 	batch_size = 30;
