@@ -697,7 +697,7 @@ class balpy(object):
 	def generateEtherscanApiUrl(self):
 		etherscanUrl = self.networkParams[self.network]["blockExplorerUrl"]
 		separator = ".";
-		if self.network in ["kovan", "rinkeby","goerli"]:
+		if self.network in ["kovan", "rinkeby","goerli","optimism"]:
 			separator = "-";
 		urlFront = "https://api" + separator + etherscanUrl;
 		return(urlFront);
