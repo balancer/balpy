@@ -1,0 +1,26 @@
+{
+    "network": "goerli",
+    "gasSpeed": "average",
+    "gasPriceOverride": "",
+    "name": "Test AssetManaged WeightedPool",
+    "symbol": "AMWP-WETH-USDC",
+    "poolType": "WeightedPoolAssetManagers",
+    "swapFeePercent": "1.0",
+    "fromInternalBalance": false,
+    "owner": "0x0000000000000000000000000000000000000000",
+    "tokens": {
+        "0xe0c9275e44ea80ef17579d33c55136b7da269aeb": {
+            "weight": "0.5",
+            "initialBalance": "200",
+            "allowance": -1,
+            "assetManager": "0x0000000000000000000000000000000000000000"
+        },
+        "0xdfcea9088c8a88a76ff74892c1457c17dfeef9c1": {
+            "weight": "0.5",
+            "initialBalance": "0.1",
+            "allowance": -1,
+            "assetManager": "0x0000000000000000000000000000000000000000"
+        }
+    },
+    "poolId": "13778d3d63e2340a1fefe865e819b374be13bbd30002000000000000000000d9"
+}

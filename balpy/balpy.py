@@ -153,6 +153,9 @@ class balpy(object):
 							"NoProtocolFeeLiquidityBootstrappingPoolFactory": {
 								"directory":"20211202-no-protocol-fee-lbp"
 							},
+							"WeightedPoolAssetManagersFactory": {
+								"directory":"20220816-weighted-pool-asset-managers"
+							},
 
 							# ===== Relayers and Infra =====
 							# TODO: update dir to 20220318-batch-relayer-v2 once deployed on all networks
@@ -901,6 +904,28 @@ class balpy(object):
 													owner);
 		return(createFunction);
 
+	def balCreateFnWeightedPoolAssetManagersFactory(self, poolData):
+		factory = self.balLoadContract("WeightedPoolAssetManagersFactory");
+		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
+
+		intWithDecimalsWeights = [int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18)) for t in tokens];
+		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
+		assetManagers = [self.web3.toChecksumAddress(poolData["tokens"][t]["assetManager"]) for t in tokens];
+
+		if not self.balWeightsEqualOne(poolData):
+			return(False);
+
+		owner = self.balSetOwner(poolData);
+
+		createFunction = factory.functions.create(	poolData["name"],
+													poolData["symbol"],
+													checksumTokens,
+													assetManagers,
+													intWithDecimalsWeights,
+													swapFeePercentage,
+													owner);
+		return(createFunction);
+
 	def balCreateFnWeightedPool2TokensFactory(self, poolData):
 		factory = self.balLoadContract("WeightedPool2TokensFactory");
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
@@ -1104,6 +1129,8 @@ class balpy(object):
 			createFunction = self.balCreateFnWeightedPoolFactory(poolDescription);
 		if poolFactoryName == "WeightedPool2TokensFactory":
 			createFunction = self.balCreateFnWeightedPool2TokensFactory(poolDescription);
+		if poolFactoryName == "WeightedPoolAssetManagersFactory":
+			createFunction = self.balCreateFnWeightedPoolAssetManagersFactory(poolDescription);
 		if poolFactoryName == "StablePoolFactory":
 			createFunction = self.balCreateFnStablePoolFactory(poolDescription);
 		if poolFactoryName == "LiquidityBootstrappingPoolFactory":
@@ -1125,6 +1152,7 @@ class balpy(object):
 			print("Currently supported pool types are:");
 			print("\tWeightedPool");
 			print("\tWeightedPool2Token");
+			print("\tWeightedPoolAssetManagersFactory");
 			print("\tStablePool");
 			print("\tLiquidityBootstrappingPool");
 			print("\tMetaStablePool");
@@ -1186,7 +1214,7 @@ class balpy(object):
 	def balGetJoinKindEnum(self, poolId, joinKind):
 		factoryName = self.balFindPoolFactory(poolId);
 
-		usingWeighted = factoryName in ["WeightedPoolFactory", "WeightedPool2TokensFactory", "LiquidityBootstrappingPoolFactory", "InvestmentPoolFactory", "NoProtocolFeeLiquidityBootstrappingPoolFactory"];
+		usingWeighted = factoryName in ["WeightedPoolFactory", "WeightedPool2TokensFactory", "WeightedPoolAssetManagersFactory", "LiquidityBootstrappingPoolFactory", "InvestmentPoolFactory", "NoProtocolFeeLiquidityBootstrappingPoolFactory"];
 		usingStable = factoryName in ["StablePoolFactory", "MetaStablePoolFactory"];
 		usingStablePhantom = factoryName in ["StablePhantomPoolFactory"];
 
