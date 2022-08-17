@@ -7,13 +7,13 @@
     */
 
     // Network and Gas Settings
-    "network": "kovan",
+    "network": "goerli",
     "gasSpeed": "average", // this can be {slow, average, fast}
     "gasPriceOverride": "", // setting this to any number will override the gasSpeed
 
     // Pool Name & Token Symbol
     "name": "Python Test Aave Linear Pool",
-    "symbol": "PTALP",
+    "symbol": "bb-a-ABCD",
 
     // Pool Configuration
     "poolType": "AaveLinearPool",
@@ -22,12 +22,12 @@
     "owner": "0x0000000000000000000000000000000000000000",
     "upperTarget": "2100000000000000000000000",
     "tokens": {
-        "0xff795577d9ac8bd7d90ee22b6c1703490b6512fd": {
+        "0x1f1f156E0317167c11Aa412E3d1435ea29Dc3cCE": {
             "isWrappedToken": false,
-            "initialBalance": "1",
+            "initialBalance": "100",
             "allowance": -1
         },
-        "0x4811a7bb9061a46753486e5e84b3cd3d668fb596": {
+        "0x4Cb1892FdDF14f772b2E39E299f44B2E5DA90d04": {
             "isWrappedToken": true,
             "initialBalance": "0",
             "allowance": -1
