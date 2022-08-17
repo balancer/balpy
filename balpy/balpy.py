@@ -144,8 +144,11 @@ class balpy(object):
 							"StablePhantomPoolFactory": {
 								"directory":"20211208-stable-phantom-pool"
 							},
+							"ComposableStablePoolFactory": {
+								"directory":"20220817-composable-stable-pool"
+							},
 							"AaveLinearPoolFactory": {
-								"directory":"20211208-aave-linear-pool"
+								"directory":"20220817-aave-rebalanced-linear-pool"
 							},
 							"ERC4626LinearPoolFactory": {
 								"directory":"20220304-erc4626-linear-pool"
@@ -1059,6 +1062,27 @@ class balpy(object):
 													owner);
 		return(createFunction);
 
+	def balCreateFnComposableStablePoolFactory(self, poolData):
+		factory = self.balLoadContract("ComposableStablePoolFactory");
+		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
+		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
+		owner = self.balSetOwner(poolData);
+
+		rateProviders = [self.web3.toChecksumAddress(poolData["tokens"][token]["rateProvider"]) for token in tokens]
+		tokenRateCacheDurations = [int(poolData["tokens"][token]["tokenRateCacheDuration"]) for token in tokens]
+		exemptFromYieldProtocolFeeFlags = [bool(poolData["tokens"][token]["exemptFromYieldProtocolFeeFlags"]) for token in tokens]
+
+		createFunction = factory.functions.create(	poolData["name"],
+													poolData["symbol"],
+													checksumTokens,
+													int(poolData["amplificationParameter"]),
+													rateProviders,
+													tokenRateCacheDurations,
+													exemptFromYieldProtocolFeeFlags,
+													swapFeePercentage,
+													owner);
+		return(createFunction);
+
 	def balCreateFnLinearPoolFactory(self, poolData, factoryName):
 		factory = self.balLoadContract(factoryName);
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
@@ -1114,6 +1138,8 @@ class balpy(object):
 			createFunction = self.balCreateFnInvestmentPoolFactory(poolDescription);
 		if poolFactoryName == "StablePhantomPoolFactory":
 			createFunction = self.balCreateFnStablePhantomPoolFactory(poolDescription);
+		if poolFactoryName == "ComposableStablePoolFactory":
+			createFunction = self.balCreateFnComposableStablePoolFactory(poolDescription);
 		if poolFactoryName == "AaveLinearPoolFactory":
 			createFunction = self.balCreateFnAaveLinearPoolFactory(poolDescription);
 		if poolFactoryName == "ERC4626LinearPoolFactory":
@@ -1130,6 +1156,7 @@ class balpy(object):
 			print("\tMetaStablePool");
 			print("\tInvestmentPool");
 			print("\tStablePhantomPool");
+			print("\tComposableStablePoolFactory");
 			print("\tAaveLinearPool");
 			print("\tERC4626LinearPoolFactory");
 			print("\tNoProtocolFeeLiquidityBootstrappingPoolFactory");
@@ -1188,7 +1215,7 @@ class balpy(object):
 
 		usingWeighted = factoryName in ["WeightedPoolFactory", "WeightedPool2TokensFactory", "LiquidityBootstrappingPoolFactory", "InvestmentPoolFactory", "NoProtocolFeeLiquidityBootstrappingPoolFactory"];
 		usingStable = factoryName in ["StablePoolFactory", "MetaStablePoolFactory"];
-		usingStablePhantom = factoryName in ["StablePhantomPoolFactory"];
+		usingStablePhantom = factoryName in ["StablePhantomPoolFactory", "ComposableStablePoolFactory"];
 
 		if usingWeighted:
 			joinKindEnum = WeightedPoolJoinKind[joinKind];
@@ -1344,7 +1371,7 @@ class balpy(object):
 			return(txHash)
 
 		# StablePhantomPools need their own BPT as one of the provided tokens with a limit of MAX_UINT_112
-		if poolDescription["poolType"] in ["StablePhantomPool"]:
+		if poolDescription["poolType"] in ["StablePhantomPool", "ComposableStablePool"]:
 			initialBalancesNoBpt = [poolDescription["tokens"][token]["initialBalance"] for token in poolDescription["tokens"].keys()];
 			phantomBptAddress = self.balPooldIdToAddress(poolId);
 			poolDescription["tokens"][phantomBptAddress] = {"initialBalance":self.MAX_UINT_112}
