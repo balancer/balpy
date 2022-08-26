@@ -1377,7 +1377,7 @@ class balpy(object):
 			poolDescription["tokens"][phantomBptAddress] = {"initialBalance":self.MAX_UINT_112}
 
 		poolDescription["joinKind"] = "INIT";
-		return(self.balJoinPool(poolDescription));
+		return(self.balJoinPool(poolDescription, False, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride));
 
 	def balLinearPoolInitJoin(self, poolDescription, poolId, slippageTolerancePercent=1, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 
