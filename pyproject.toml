@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "balpy"
-version = "0.0.0a67"
+version = "0.0.0a68"
 description = "Balancer V2 Python API"
-authors = ["Langer <langer@balancer.fi>"]
+authors = ["Greg <greg@orb.cl>"]
 license = "GNU GPL 3"
 
 [tool.poetry.dependencies]
