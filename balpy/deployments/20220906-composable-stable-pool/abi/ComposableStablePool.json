@@ -171,7 +171,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "protocolSwapFeePercentage",
+        "name": "protocolFeePercentage",
         "type": "uint256"
       }
     ],
@@ -438,6 +438,19 @@
   },
   {
     "inputs": [],
+    "name": "getActualSupply",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "getAmplificationParameter",
     "outputs": [
       {
@@ -661,7 +674,7 @@
     "outputs": [
       {
         "internalType": "contract IRateProvider[]",
-        "name": "providers",
+        "name": "",
         "type": "address[]"
       }
     ],
@@ -755,19 +768,6 @@
         "internalType": "contract IVault",
         "name": "",
         "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getVirtualSupply",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
       }
     ],
     "stateMutability": "view",

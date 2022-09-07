@@ -1,21 +1,9 @@
 {
-    /*
-    It is highly recommended that you make a copy of this file before running the script!
-    Once you run the script with a given file, these comments will disappear since to the
-    file will be saved with the poolId encoded in it. The pool generation script can handle
-    reading json files with comments in them, but it cannot recreate them.
-    */
-
-    // Network and Gas Settings
     "network": "goerli",
-    "gasSpeed":"average", // this can be {slow, average, fast}
-    "gasPriceOverride":"", // setting this to any number will override the gasSpeed
-
-    // Pool Name & Token Symbol
+    "gasSpeed": "average",
+    "gasPriceOverride": "",
     "name": "Python Test Composable Stable Pool",
     "symbol": "PTCSP",
-
-    // Pool Configuration
     "poolType": "ComposableStablePool",
     "swapFeePercent": "1.0",
     "fromInternalBalance": false,
@@ -43,5 +31,6 @@
             "tokenRateCacheDuration": "1000",
             "exemptFromYieldProtocolFeeFlags": false
         }
-    }
+    },
+    "poolId": "98087bf6a5ca828a6e09391ace674dbabb6a4c5600000000000000000000019b"
 }
