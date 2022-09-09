@@ -121,7 +121,7 @@ class balpy(object):
 
 							# ====== Pools and Associated Contracts ======
 							"WeightedPoolFactory": {
-								"directory":"20210418-weighted-pool"
+								"directory":"20220908-weighted-pool-v2"
 							},
 							"WeightedPool2TokensFactory": {
 								"directory":"20210418-weighted-pool"
@@ -243,6 +243,9 @@ class balpy(object):
 							},
 							"DistributionScheduler": {
 								"directory":"20220422-distribution-scheduler"
+							},
+							"ProtocolFeePercentagesProvider": {
+								"directory":"20220725-protocol-fee-percentages-provider"
 							}
 						};
 
@@ -890,6 +893,7 @@ class balpy(object):
 
 		intWithDecimalsWeights = [int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18)) for t in tokens];
 		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
+		rateProviders = [self.web3.toChecksumAddress(poolData["tokens"][token]["rateProvider"]) for token in tokens];
 
 		if not self.balWeightsEqualOne(poolData):
 			return(False);
@@ -899,7 +903,8 @@ class balpy(object):
 		createFunction = factory.functions.create(	poolData["name"], 
 													poolData["symbol"], 
 													checksumTokens, 
-													intWithDecimalsWeights, 
+													intWithDecimalsWeights,
+													rateProviders,
 													swapFeePercentage, 
 													owner);
 		return(createFunction);
@@ -1598,12 +1603,16 @@ class balpy(object):
 
 		structInConstructor = False;
 		if poolType == "WeightedPool":
-			args = [self.deploymentAddresses["Vault"],
-					decodedPoolData["name"],
+			zero_ams = [self.ZERO_ADDRESS] * len(decodedPoolData["tokens"]);
+			args = [(decodedPoolData["name"],
 					decodedPoolData["symbol"],
 					decodedPoolData["tokens"],
-					decodedPoolData["weights"],
-					int(decodedPoolData["swapFeePercentage"]),
+					decodedPoolData["normalizedWeights"],
+					decodedPoolData["rateProviders"],
+					zero_ams,
+					int(decodedPoolData["swapFeePercentage"])),
+					self.deploymentAddresses["Vault"],
+					self.deploymentAddresses["ProtocolFeePercentagesProvider"],
 					int(pauseWindowDurationSec),
 					int(bufferPeriodDurationSec),
 					decodedPoolData["owner"]];

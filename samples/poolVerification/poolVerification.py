@@ -1,12 +1,12 @@
 import balpy
 
 def main():
-	network = "polygon"
-	poolId = "0x0d34e5dd4d8f043557145598e4e2dc286b35fd4f000000000000000000000068"
+	network = "goerli"
+	poolId = "0xe867ad0a48e8f815dc0cda2cdb275e0f163a480b0002000000000000000001a0"
 	# On Ethereum and Ethereum testnets, you can pass creationHash=None
 	# On Polygon, you must pass the pool creation hash to generate verification params
-	# creationHash = None;
-	creationHash = "0x18c7e1c9235c6e93878e55a87ed249f9d0ceb9d12ee584794e92f80f7645686d";
+	creationHash = None;
+	# creationHash = "0x18c7e1c9235c6e93878e55a87ed249f9d0ceb9d12ee584794e92f80f7645686d";
 	verbose = False;
 
 	bal = balpy.balpy.balpy(network);
