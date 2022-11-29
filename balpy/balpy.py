@@ -1307,6 +1307,7 @@ class balpy(object):
 				del checksumTokens[i];
 				del maxAmountsIn[i];
 				del userDataMaxAmountIn[i];
+				break;
 
 		checksumTokens.insert(0, poolAddress);
 		maxAmountsIn.insert(0, composableAmount);
