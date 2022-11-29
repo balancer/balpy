@@ -3,6 +3,7 @@ import sys
 import os
 import json
 import jstyleson
+import time
 
 import webbrowser
 
@@ -81,6 +82,7 @@ def main():
 	print("==================================================================")
 	print();
 	try:
+		time.sleep(5); # sleep ensure that the RPC knows the new pool exists
 		txHash = bal.balJoinPoolInit(pool, poolId, gasPriceGweiOverride=gasPriceGweiOverride);
 	except Exception as e:
 		print("Joining pool failed!");
