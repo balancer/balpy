@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "balpy"
-version = "0.0.0a69"
+version = "0.0.0a70"
 description = "Balancer V2 Python API"
 authors = ["Greg <greg@orb.cl>"]
 license = "GNU GPL 3"
