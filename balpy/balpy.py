@@ -156,6 +156,9 @@ class balpy(object):
 							"NoProtocolFeeLiquidityBootstrappingPoolFactory": {
 								"directory":"20211202-no-protocol-fee-lbp"
 							},
+							"ManagedPoolFactory": {
+								"directory":"20221021-managed-pool"
+							},
 
 							# ===== Relayers and Infra =====
 							# TODO: update dir to 20220318-batch-relayer-v2 once deployed on all networks
@@ -1048,6 +1051,50 @@ class balpy(object):
 													managementFeePercentage);
 		return(createFunction);
 
+	def balCreateFnManagedPoolFactory(self, poolData):
+		self.WARN("!!! You are using the Managed Pool Factory without a controller !!!")
+		self.WARN("You are currently using a factory to deploy a managed pool without a factory-provided controller contract.")
+		self.WARN("It is highly recommended that you use a factory that pairs a controller with a pool")
+		self.WARN("While this will be a valid pool, the owner will have a dangerous level of power over the pool")
+		self.WARN("It *is* technically possible to add a controller contract as `owner`, but using a factory-paired one provides more guarantees")
+
+		factory = self.balLoadContract("ManagedPoolFactory");
+		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
+		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
+		intWithDecimalsWeights = [int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18)) for t in tokens];
+		assetManagers = [poolData["tokens"][t]["assetManager"] for t in tokens];
+		managementAumFeePercentage = int(Decimal(poolData["managementAumFeePercentage"]) * Decimal(1e16));
+
+		owner = self.balSetOwner(poolData);
+		if not owner == self.address:
+			self.WARN("!!! You are not the owner for your Managed Pool !!!")
+			self.WARN("You:\t\t" + self.address)
+			self.WARN("Pool Owner:\t" + owner)
+
+			print();
+			self.WARN("Only the pool owner can call permissioned functions, such as changing weights or the management fee.")
+			self.WARN(owner + " should either be you, or a multi-sig or other contract that you control and can call permissioned functions from.")
+			cancelTimeSec = 30;
+			self.WARN("If the owner mismatch is was unintentional, you have " + str(cancelTimeSec) + " seconds to cancel with Ctrl+C.")
+			time.sleep(cancelTimeSec);
+
+		createFunction = factory.functions.create(
+			(
+				poolData["name"],
+				poolData["symbol"],
+				checksumTokens,
+				intWithDecimalsWeights,
+				assetManagers,
+				swapFeePercentage,
+				poolData["swapEnabledOnStart"],
+				poolData["mustAllowlistLPs"],
+				managementAumFeePercentage,
+				int(poolData["aumFeeId"])
+			),
+			owner
+		);
+		return(createFunction);
+
 	def balCreateFnStablePhantomPoolFactory(self, poolData):
 		factory = self.balLoadContract("StablePhantomPoolFactory");
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
@@ -1141,6 +1188,8 @@ class balpy(object):
 			createFunction = self.balCreateFnMetaStablePoolFactory(poolDescription);
 		if poolFactoryName == "InvestmentPoolFactory":
 			createFunction = self.balCreateFnInvestmentPoolFactory(poolDescription);
+		if poolFactoryName == "ManagedPoolFactory":
+			createFunction = self.balCreateFnManagedPoolFactory(poolDescription);
 		if poolFactoryName == "StablePhantomPoolFactory":
 			createFunction = self.balCreateFnStablePhantomPoolFactory(poolDescription);
 		if poolFactoryName == "ComposableStablePoolFactory":
@@ -1218,7 +1267,7 @@ class balpy(object):
 	def balGetJoinKindEnum(self, poolId, joinKind):
 		factoryName = self.balFindPoolFactory(poolId);
 
-		usingWeighted = factoryName in ["WeightedPoolFactory", "WeightedPool2TokensFactory", "LiquidityBootstrappingPoolFactory", "InvestmentPoolFactory", "NoProtocolFeeLiquidityBootstrappingPoolFactory"];
+		usingWeighted = factoryName in ["WeightedPoolFactory", "WeightedPool2TokensFactory", "LiquidityBootstrappingPoolFactory", "InvestmentPoolFactory", "NoProtocolFeeLiquidityBootstrappingPoolFactory", "ManagedPoolFactory"];
 		usingStable = factoryName in ["StablePoolFactory", "MetaStablePoolFactory"];
 		usingStablePhantom = factoryName in ["StablePhantomPoolFactory", "ComposableStablePoolFactory"];
 
@@ -1242,6 +1291,28 @@ class balpy(object):
 		maxAmountsIn = self.balConvertTokensToWei(sortedTokens, amountsBySortedTokens);
 		return(checksumTokens, maxAmountsIn);
 
+	def balGetTokensAndAmountsComposable(self, joinDescription):
+		(checksumTokens, maxAmountsIn) = self.balGetTokensAndAmounts(joinDescription);
+
+		poolAddress = self.balPooldIdToAddress(joinDescription["poolId"]);
+		poolAddress = self.web3.toChecksumAddress(poolAddress);
+
+		composableAmount = None;
+
+		userDataMaxAmountIn = copy.deepcopy(maxAmountsIn);
+
+		for i in range(len(checksumTokens)):
+			if checksumTokens[i] == poolAddress:
+				composableAmount = maxAmountsIn[i];
+				del checksumTokens[i];
+				del maxAmountsIn[i];
+				del userDataMaxAmountIn[i];
+
+		checksumTokens.insert(0, poolAddress);
+		maxAmountsIn.insert(0, composableAmount);
+
+		return(checksumTokens, maxAmountsIn, userDataMaxAmountIn);
+
 	def balDoJoinPool(self, poolId, address, joinPoolRequestTuple, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 		vault = self.balLoadContract("Vault");
 		joinPoolFunction = vault.functions.joinPool(poolId, address, address, joinPoolRequestTuple);
@@ -1257,10 +1328,17 @@ class balpy(object):
 
 	def balFormatJoinPoolInit(self, joinDescription):
 		(checksumTokens, maxAmountsIn) = self.balGetTokensAndAmounts(copy.deepcopy(joinDescription));
+
 		poolId = joinDescription["poolId"];
+		factory = self.balFindPoolFactory(poolId);
+
+		userDataMaxAmountsIn = maxAmountsIn;
+		if factory in ["ManagedPoolFactory"]:
+			(checksumTokens, maxAmountsIn, userDataMaxAmountsIn) = self.balGetTokensAndAmountsComposable(copy.deepcopy(joinDescription));
+
 		joinKindEnum = self.balGetJoinKindEnum(poolId, joinDescription["joinKind"]);
 		userDataEncoded = eth_abi.encode_abi(	['uint256', 'uint256[]'],
-												[int(joinKindEnum), maxAmountsIn]);
+												[int(joinKindEnum), userDataMaxAmountsIn]);
 		address = self.web3.toChecksumAddress(self.web3.eth.default_account);
 		joinPoolRequestTuple = (checksumTokens, maxAmountsIn, userDataEncoded.hex(), joinDescription["fromInternalBalance"]);
 		return(poolId, address, joinPoolRequestTuple);
@@ -1376,7 +1454,7 @@ class balpy(object):
 			return(txHash)
 
 		# StablePhantomPools need their own BPT as one of the provided tokens with a limit of MAX_UINT_112
-		if poolDescription["poolType"] in ["StablePhantomPool", "ComposableStablePool"]:
+		if poolDescription["poolType"] in ["StablePhantomPool", "ComposableStablePool", "ManagedPool"]:
 			initialBalancesNoBpt = [poolDescription["tokens"][token]["initialBalance"] for token in poolDescription["tokens"].keys()];
 			phantomBptAddress = self.balPooldIdToAddress(poolId);
 			poolDescription["tokens"][phantomBptAddress] = {"initialBalance":self.MAX_UINT_112}
