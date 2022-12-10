@@ -7,10 +7,9 @@ Showcasing two different ways to properly test your code
 import balancerv2cad as ks
 
 
-
 def test_pkgname_using_fixture(version_test):
     """
     testing pkgname from passing the module
     in as a fixture
     """
-    assert version_test.__package__ == 'balancerv2cad'
+    assert version_test.__package__ == "balancerv2cad"
