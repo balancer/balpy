@@ -30,9 +30,9 @@ def version_test() -> None:
     test version
     """
     # Setup code
-    sys.stdout.write('\nRunning setup code for balancerv2cad module\n')
+    sys.stdout.write("\nRunning setup code for balancerv2cad module\n")
 
     yield balancerv2cad
 
     # tear down code
-    sys.stdout.write('Running Teardown code for balancerv2cad module\n')
+    sys.stdout.write("Running Teardown code for balancerv2cad module\n")

@@ -23,6 +23,7 @@ class PackageLogger:
     """
     Logging class
     """
+
     def __init__(self) -> None:
         # defaults to project root directory, change this
         # and __init__.py if you want the log file to go elsewhere
@@ -49,19 +50,15 @@ class PackageLogger:
             dictConfig(LOGGING_CONFIG)
         except ValueError as error:
             print(
-                f'{Fore.RED}Loading default logging config failed, syntax error\n\n{error}'
+                f"{Fore.RED}Loading default logging config failed, syntax error\n\n{error}"
             )
             sys.exit(1)
         except KeyError as error:
-            print(
-                f'{Fore.RED}Loading logging config failed, syntax error\n\n{error}'
-            )
+            print(f"{Fore.RED}Loading logging config failed, syntax error\n\n{error}")
             sys.exit(1)
 
     @staticmethod
-    def get_logger(
-            name: Literal['production'] = DEFAULT_LOGGER_NAME
-    ) -> logging.Logger:
+    def get_logger(name: Literal["production"] = DEFAULT_LOGGER_NAME) -> logging.Logger:
         """
         Return a logger by name.
         Only logger names that are defined in the config
@@ -71,8 +68,8 @@ class PackageLogger:
         """
         # first test to see if the name is a valid defined logger name
         valid: bool = False
-        if LOGGING_CONFIG['loggers']:
-            for logger_name in LOGGING_CONFIG['loggers']:
+        if LOGGING_CONFIG["loggers"]:
+            for logger_name in LOGGING_CONFIG["loggers"]:
                 if logger_name == name:
                     valid = True
 
@@ -80,8 +77,8 @@ class PackageLogger:
             # name passed is not a valid listed logger,
             # return dev as default logger
             print(
-                f'\n{Back.BLACK}{Fore.RED}{name}: IS NOT A VALID LOGGER\n'
-                f'{Back.BLACK}{Fore.YELLOW}FALLING BACK TO {DEFAULT_LOGGER_NAME}\n'
+                f"\n{Back.BLACK}{Fore.RED}{name}: IS NOT A VALID LOGGER\n"
+                f"{Back.BLACK}{Fore.YELLOW}FALLING BACK TO {DEFAULT_LOGGER_NAME}\n"
             )
             logger = logging.getLogger(DEFAULT_LOGGER_NAME)
             return logger
