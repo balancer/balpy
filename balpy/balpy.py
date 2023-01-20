@@ -381,7 +381,8 @@ class balpy(object):
 		self.mc = multicaller.multicaller(	_chainId=self.networkParams[self.network]["id"],
 											_web3=self.web3,
 											_maxRetries=5,
-											_verbose=False);
+											_verbose=False,
+											_allowFailure=True);
 
 		#reset for the edge case in which we're iterating through multiple networks
 		self.deploymentAddresses = {};
@@ -1248,7 +1249,7 @@ class balpy(object):
 			factory = self.balLoadContract(factoryName);
 			poolAddress = self.balPooldIdToAddress(poolId);
 			self.mc.addCall(factory.address, factory.abi, "isPoolFromFactory", args=[poolAddress]);
-		data = self.mc.execute();
+		(data, successes) = self.mc.execute();
 
 		foundFactoryName = None;
 		numFound = 0;
@@ -1979,16 +1980,21 @@ class balpy(object):
 			(kind, swapsTuples, assets, funds, intReorderedLimits, deadline) = self.balFormatBatchSwapData(deepCopySwapDescription);
 			args = [kind, swapsTuples, assets, funds];
 			self.mc.addCall(vault.address, vault.abi, "queryBatchSwap", args=args);
-		data = self.mc.execute();
+		(data, successes) = self.mc.execute();
 
 		outputs = [];
-		for swapDescription, outputData in zip(swapsDescription, data):
-			amounts = list(outputData[0]);
-			output = {};
-			for asset, amount in zip(assets, amounts):
-				decimals = self.erc20GetDecimals(asset);
-				output[asset] = amount * 10**(-decimals);
+		for swapDescription, outputData, currSuccess in zip(swapsDescription, data, successes):
+			output = None;
+			if currSuccess:
+				amounts = list(outputData[0]);
+				output = {};
+				for asset, amount in zip(assets, amounts):
+					decimals = self.erc20GetDecimals(asset);
+					output[asset] = amount * 10**(-decimals);
+			else:
+				output = {asset:None for asset in assets};
 			outputs.append(output);
+
 		return(outputs);
 
 	def balQueryBatchSwap(self, originalSwapDescription):
@@ -2020,7 +2026,7 @@ class balpy(object):
 			self.mc.addCall(currTokenContract.address, currTokenContract.abi, 'decimals');
 
 		# make the actual call to MultiCall
-		outputData = self.mc.execute();
+		(outputData, successes) = self.mc.execute();
 		tokensToDecimals = {};
 
 		for token, odBytes in zip(tokens, outputData):
@@ -2080,7 +2086,7 @@ class balpy(object):
 					self.mc.addCall(currPool.address, currPool.abi, 'getSwapEnabled');
 					pidAndFns.append((poolId, "getSwapEnabled"));
 
-		data = self.mc.execute();
+		(data, successes) = self.mc.execute();
 
 		chainDataOut = {};
 		chainDataBookkeeping = {};
