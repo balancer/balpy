@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "balpy"
-version = "0.0.0a70"
+version = "0.0.0a71"
 description = "Balancer V2 Python API"
 authors = ["Greg <greg@orb.cl>"]
 license = "GNU GPL 3"
@@ -14,7 +14,7 @@ eth-abi="2.1.1"
 gql="2.0.0"
 multicaller=">=0.0.0a10"
 jstyleson="0.0.2"
-web3=">=5.19.0"
+web3="5.19.0"
 
 [tool.poetry.dev-dependencies]
 pytest="*"
