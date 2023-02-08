@@ -121,7 +121,7 @@ class balpy(object):
 
 							# ====== Pools and Associated Contracts ======
 							"WeightedPoolFactory": {
-								"directory":"20220908-weighted-pool-v2"
+								"directory":"20230206-weighted-pool-v3"
 							},
 							"WeightedPool2TokensFactory": {
 								"directory":"20210418-weighted-pool"
@@ -145,7 +145,7 @@ class balpy(object):
 								"directory":"20211208-stable-phantom-pool"
 							},
 							"ComposableStablePoolFactory": {
-								"directory":"20220906-composable-stable-pool"
+								"directory":"20230206-composable-stable-pool-v3"
 							},
 							"AaveLinearPoolFactory": {
 								"directory":"20220817-aave-rebalanced-linear-pool"
@@ -1250,17 +1250,18 @@ class balpy(object):
 			self.mc.addCall(factory.address, factory.abi, "isPoolFromFactory", args=[poolAddress]);
 		data = self.mc.execute();
 
-		foundFactoryName = None;
+		foundFactoryName = [];
 		numFound = 0;
-		for f,d in zip(factoryNames, data):
+		for f,d in zip(factoryNames, data[0]):
 			if d[0]:
-				foundFactoryName = f;
+				foundFactoryName.append(f);
 				numFound += 1;
 
 		if numFound == 1:
-			return(foundFactoryName);
+			return(foundFactoryName[0]);
 		else:
 			self.ERROR("Was expecting 1 factory, got " + str(numFound));
+			self.ERROR(",".join(foundFactoryName))
 			self.ERROR("Checked the following factories:\n\t\t" + "\n\t\t".join(factoryNames));
 			return(None);
 
