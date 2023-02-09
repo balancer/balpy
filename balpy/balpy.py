@@ -151,7 +151,7 @@ class balpy(object):
 								"directory":"20220817-aave-rebalanced-linear-pool"
 							},
 							"ERC4626LinearPoolFactory": {
-								"directory":"20220304-erc4626-linear-pool"
+								"directory":"20230206-erc4626-linear-pool-v3"
 							},
 							"NoProtocolFeeLiquidityBootstrappingPoolFactory": {
 								"directory":"20211202-no-protocol-fee-lbp"
@@ -1160,7 +1160,8 @@ class balpy(object):
 													self.web3.toChecksumAddress(wrappedToken),
 													upperTarget,
 													swapFeePercentage,
-													owner);
+													owner,
+													int(poolData["protocolId"]));
 		return(createFunction);
 
 	def balCreateFnAaveLinearPoolFactory(self, poolData):
@@ -1450,7 +1451,7 @@ class balpy(object):
 
 	def balJoinPoolInit(self, poolDescription, poolId, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 
-		if poolDescription["poolType"] in ["AaveLinearPool"]:
+		if poolDescription["poolType"] in ["AaveLinearPool", "ERC4626LinearPool"]:
 			slippageTolerancePercent = 1;
 			txHash = self.balLinearPoolInitJoin(poolDescription, poolId, slippageTolerancePercent=slippageTolerancePercent, gasFactor=gasFactor, gasPriceSpeed=gasPriceSpeed, nonceOverride=nonceOverride, gasEstimateOverride=gasEstimateOverride, gasPriceGweiOverride=gasPriceGweiOverride);
 			return(txHash)
