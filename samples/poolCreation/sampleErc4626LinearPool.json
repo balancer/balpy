@@ -1,0 +1,37 @@
+{
+    /*
+    It is highly recommended that you make a copy of this file before running the script!
+    Once you run the script with a given file, these comments will disappear since to the
+    file will be saved with the poolId encoded in it. The pool generation script can handle
+    reading json files with comments in them, but it cannot recreate them.
+    */
+
+    // Network and Gas Settings
+    "network": "goerli",
+    "gasSpeed": "average", // this can be {slow, average, fast}
+    "gasPriceOverride": "", // setting this to any number will override the gasSpeed
+
+    // Pool Name & Token Symbol
+    "name": "Python Test ERC4626 Linear Pool",
+    "symbol": "bb-4626-TOKEN",
+
+    // Pool Configuration
+    "poolType": "ERC4626LinearPool",
+    "swapFeePercent": "0.0005",
+    "fromInternalBalance": false,
+    "owner": "0x0000000000000000000000000000000000000000",
+    "upperTarget": "2100000000000000000000000",
+    "protocolId": "0",
+    "tokens": {
+        "0xba8dced3512925e52fe67b1b5329187589072a55": {
+            "isWrappedToken": false,
+            "initialBalance": "1",
+            "allowance": -1
+        },
+        "0xbD5A20635F72063467E2EcF1394dEE13Ff7b689B": {
+            "isWrappedToken": true,
+            "initialBalance": "0",
+            "allowance": -1
+        }
+    }
+}
