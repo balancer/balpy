@@ -1984,16 +1984,10 @@ class balpy(object):
 			self.mc.addCall(vault.address, vault.abi, "queryBatchSwap", args=args);
 		data = self.mc.execute();
 
-		allFail = True;
-		for currSuccess in data[1]:
-			if currSuccess:
-				allFail = False;
-				break;
-
 		outputs = [];
 		for swapDescription, outputData, successfulCall in zip(swapsDescription, data[0], data[1]):
 			output = {};
-			if not allFail:
+			if successfulCall:
 				amounts = list(outputData[0]);
 				for asset, amount in zip(assets, amounts):
 					if successfulCall:
