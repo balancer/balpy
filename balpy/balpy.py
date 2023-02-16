@@ -1984,14 +1984,17 @@ class balpy(object):
 		data = self.mc.execute();
 
 		outputs = [];
-		for swapDescription, outputData in zip(swapsDescription, data):
+		for swapDescription, outputData, successfulCall in zip(swapsDescription, data[0], data[1]):
 			amounts = list(outputData[0]);
 			output = {};
 			for asset, amount in zip(assets, amounts):
-				decimals = self.erc20GetDecimals(asset);
-				output[asset] = amount * 10**(-decimals);
+				if successfulCall:
+					decimals = self.erc20GetDecimals(asset);
+					output[asset] = amount * 10**(-decimals);
+				else:
+					output[asset] = None;
 			outputs.append(output);
-		return(outputs);
+		return(outputs, data[1]);
 
 	def balQueryBatchSwap(self, originalSwapDescription):
 		swapDescription = copy.deepcopy(originalSwapDescription);

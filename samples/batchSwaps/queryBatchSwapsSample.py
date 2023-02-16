@@ -20,7 +20,8 @@ def main():
 	bal = balpy.balpy.balpy(data["network"]);
 
 	swap = data["batchSwap"];
-	data = bal.balQueryBatchSwaps([swap] * 3);
+	(data, successes) = bal.balQueryBatchSwaps([swap] * 3);
+	print(successes)
 	print(json.dumps(data, indent=4));
 
 if __name__ == '__main__':
