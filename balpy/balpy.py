@@ -1984,17 +1984,29 @@ class balpy(object):
 			self.mc.addCall(vault.address, vault.abi, "queryBatchSwap", args=args);
 		data = self.mc.execute();
 
+		allFail = True;
+		for currSuccess in data[1]:
+			if currSuccess:
+				allFail = False;
+				break;
+
 		outputs = [];
 		for swapDescription, outputData, successfulCall in zip(swapsDescription, data[0], data[1]):
-			amounts = list(outputData[0]);
 			output = {};
-			for asset, amount in zip(assets, amounts):
-				if successfulCall:
-					decimals = self.erc20GetDecimals(asset);
-					output[asset] = amount * 10**(-decimals);
-				else:
+			if not allFail:
+				amounts = list(outputData[0]);
+				for asset, amount in zip(assets, amounts):
+					if successfulCall:
+						decimals = self.erc20GetDecimals(asset);
+						output[asset] = amount * 10**(-decimals);
+					else:
+						output[asset] = None;
+				outputs.append(output);
+			else:
+				for asset in assets:
 					output[asset] = None;
-			outputs.append(output);
+				outputs.append(output);
+
 		return(outputs, data[1]);
 
 	def balQueryBatchSwap(self, originalSwapDescription):
