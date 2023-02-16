@@ -381,7 +381,8 @@ class balpy(object):
 		self.mc = multicaller.multicaller(	_chainId=self.networkParams[self.network]["id"],
 											_web3=self.web3,
 											_maxRetries=5,
-											_verbose=False);
+											_verbose=False,
+											_allowFailure=True);
 
 		#reset for the edge case in which we're iterating through multiple networks
 		self.deploymentAddresses = {};
