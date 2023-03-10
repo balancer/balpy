@@ -14,23 +14,22 @@
             "initialBalance": "100",
             "allowance": -1,
             "rateProvider": "0x0000000000000000000000000000000000000000",
-            "tokenRateCacheDuration": "1000",
+            "tokenRateCacheDuration": "21600",
             "exemptFromYieldProtocolFeeFlags": false
         },
         "0xe0c9275e44ea80ef17579d33c55136b7da269aeb": {
             "initialBalance": "100",
             "allowance": -1,
             "rateProvider": "0x0000000000000000000000000000000000000000",
-            "tokenRateCacheDuration": "1000",
+            "tokenRateCacheDuration": "21600",
             "exemptFromYieldProtocolFeeFlags": false
         },
         "0x8c9e6c40d3402480ace624730524facc5482798c": {
             "initialBalance": "100",
             "allowance": -1,
             "rateProvider": "0x0000000000000000000000000000000000000000",
-            "tokenRateCacheDuration": "1000",
+            "tokenRateCacheDuration": "21600",
             "exemptFromYieldProtocolFeeFlags": false
         }
-    },
-    "poolId": "98087bf6a5ca828a6e09391ace674dbabb6a4c5600000000000000000000019b"
+    }
 }
