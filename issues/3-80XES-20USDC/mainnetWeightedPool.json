@@ -12,18 +12,18 @@
     "gasPriceOverride":"", // setting this to any number will override the gasSpeed
 
     // Pool Name & Token Symbol
-    "name": "Balancer XES(80%) USDC(20%) Pool Token",
+    "name": "Balancer 80XEX 20USDC Pool Token",
     "symbol": "B-80XEX-20USDC",
 
     // Pool Configuration
     "poolType": "WeightedPool",
-    "swapFeePercent": "0.1",
+    "swapFeePercent": "1.88",
     "fromInternalBalance": false,
-    "owner": "0x0000000000000000000000000000000000000000",
+    "owner": "0xba1ba1ba1ba1ba1ba1ba1ba1ba1ba1ba1ba1ba1b",
     "tokens": {
-        "0x8c9e6c40d3402480ace624730524facc5482798c": {
+        "0xa41A879bcFdd75983a987FD6b68fae37777e8b28": {
             "weight": "0.8",
-            "initialBalance": "221078033",
+            "initialBalance": "9187125.601735689",
             "rateProvider": "0x0000000000000000000000000000000000000000",
             "allowance": -1
         },
