@@ -8,41 +8,44 @@ assignees: mikebmikeb, Tritium-VLK
 ---
 
 ## Before you start
-** Unsupported token types**
+### Unsupported token types
 - Tokens that rebase 
   - Needs a wrapper
 - Tokens that charge tx fees.
 
 ## Questions to Answer
-** What style pool do you want, delete all but one**
+### What style pool do you want, delete all but one
 WeightedPool, StableSwap
 
-** What Chain(s)**
+### What Chain(s)
+mainnet, polygon, arbitrum, gnosis
 
-** What tokens would you like in the pool, and if weighted pool in what ratios **
+### What tokens would you like in the pool, and if weighted pool in what ratios **
 
 Stableswap example: wstETH,rETH,ETH
 WeightedPool example: wstETH(40%), BAL(40%), bb-a-usd(20%)
 
-**If stableswap, what should the A-factor be set to**
+### If stableswap, what should the A-factor be set to
 1-10000 (10-50 is usually good unless it's REALLY stable)
 
-** What should the fees be set too**
+### What should the fees be set too
 0.001 to 10 %
 
-** Are any of your tokens interest baring?**
+### Are any of your tokens interest baring?
 Yes/No
 
-** How do you get the price per share of the interest baring token(s) (For Example: 1 wstETH in ETH) **
+### How do you get the price per share of the interest baring token(s) (For Example: 1 wstETH in ETH) 
 Link to contract on block scanner and mention read function.  Or if you have already deployed [RateProviders](https://docs.balancer.fi/reference/contracts/rate-providers.html) let us know the address per token.
 
-** If this is a weighted pool, you can decide if you balancer to take fees on the interest baring portion of the pool, causing this pool to be a Core Pool and particpate in the [BIP-19 Brib System](https://forum.balancer.fi/t/bip-19-incentivize-core-pools-l2-usage/3329). Do you want to want your pool with interest baring tokens to be a core pool? **
+###  Do you want to want your pool with interest baring tokens to be a core pool? 
+ If this is a weighted pool, you can decide if you balancer to take fees on the interest baring portion of the pool, causing this pool to be a Core Pool and particpate in the [BIP-19 Brib System](https://forum.balancer.fi/t/bip-19-incentivize-core-pools-l2-usage/3329).
+
 Yes/No
 
-** Is it OK if permission to manage the fees and a-factor are deleted to balancer governance.  This is expected for a gauge.  If not, what address should be owner of the pool **
+### Is it OK if permission to manage the fees and a-factor are deleted to balancer governance.  This is expected for a gauge.  If not, what address should be owner of the pool 
 Yes or Owner Address
 
-**We will need to get in touch with you**
+### We will need to get in touch with you
 Please ping [Tritium](https://t.me/tritium_vlk) or [Zen Dragon](https://t.me/Z_Dragon) or MikeB(https://t.me/mikeisballin) or another Maxi and reference this ticket.  JUST ONE OF US PLEASE :).  We want to make sure you are talking to right person before you send tokens.
 
 
