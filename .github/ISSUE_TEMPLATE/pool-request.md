@@ -17,7 +17,7 @@ assignees: mikebmikeb, Tritium-VLK
 ### What style pool do you want, delete all but one
 WeightedPool, StableSwap
 
-### What Chain(s)
+### What Chain(s) (only list needed chains)
 mainnet, polygon, arbitrum, gnosis
 
 ### What tokens would you like in the pool, and if weighted pool in what ratios **
@@ -25,14 +25,11 @@ mainnet, polygon, arbitrum, gnosis
 Stableswap example: wstETH,rETH,ETH
 WeightedPool example: wstETH(40%), BAL(40%), bb-a-usd(20%)
 
-### If stableswap, what should the A-factor be set to
-1-10000 (10-50 is usually good unless it's REALLY stable)
+### If stableswap, what should the A-factor be set to (not needed for weighted pool)
 
 ### What should the fees be set too
-0.001 to 10 %
 
 ### Are any of your tokens interest baring?
-Yes/No
 
 ### How do you get the price per share of the interest baring token(s) (For Example: 1 wstETH in ETH) 
 Link to contract on block scanner and mention read function.  Or if you have already deployed [RateProviders](https://docs.balancer.fi/reference/contracts/rate-providers.html) let us know the address per token.
@@ -40,7 +37,7 @@ Link to contract on block scanner and mention read function.  Or if you have alr
 ###  Do you want to want your pool with interest baring tokens to be a core pool? 
  If this is a weighted pool, you can decide if you balancer to take fees on the interest baring portion of the pool, causing this pool to be a Core Pool and particpate in the [BIP-19 Brib System](https://forum.balancer.fi/t/bip-19-incentivize-core-pools-l2-usage/3329).
 
-Yes/No
+Yes or No, delete one
 
 ### Is it OK if permission to manage the fees and a-factor are deleted to balancer governance.  This is expected for a gauge.  If not, what address should be owner of the pool 
 Yes or Owner Address
