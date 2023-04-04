@@ -19,7 +19,7 @@
     "poolType": "WeightedPool",
     "swapFeePercent": "0.1",
     "fromInternalBalance": false,
-    "owner": "0x0000000000000000000000000000000000000000",
+    "owner": "0xba1ba1ba1ba1ba1ba1ba1ba1ba1ba1ba1ba1ba1b",
     "tokens": {
         "0x8c9e6c40d3402480ace624730524facc5482798c": {
             "weight": "0.5",

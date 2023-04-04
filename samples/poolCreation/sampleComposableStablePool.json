@@ -8,7 +8,7 @@
     "swapFeePercent": "1.0",
     "fromInternalBalance": false,
     "amplificationParameter": "100",
-    "owner": "0x0000000000000000000000000000000000000000",
+    "owner": "0xba1ba1ba1ba1ba1ba1ba1ba1ba1ba1ba1ba1ba1b",
     "tokens": {
         "0x1f1f156e0317167c11aa412e3d1435ea29dc3cce": {
             "initialBalance": "100",

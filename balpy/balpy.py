@@ -318,9 +318,18 @@ class balpy(object):
 			print("\t\texport " + self.envVarPrivate + "=<yourPrivateKey>");
 			quit();
 
+		w3_by_chain = {
+			"mainnet": Web3(Web3.HTTPProvider(f"https://mainnet.infura.io/v3/{self.infuraApiKey}")),
+			"arbitrum": Web3(Web3.HTTPProvider(f"https://arbitrum-mainnet.infura.io/v3/{self.infuraApiKey}")),
+			"optimism": Web3(Web3.HTTPProvider(f"https://optimism-rpc.gateway.pokt.network")),
+			"polygon": Web3(Web3.HTTPProvider(f"https://polygon-mainnet.infura.io/v3/{self.infuraApiKeyY}")),
+			"gnosis": Web3(Web3.HTTPProvider(f"https://rpc.gnosischain.com/")),
+			"goerli": Web3(Web3.HTTPProvider(f"https://goerli.infura.io/v3/{self.infuraApiKeyY}")),
+		}
+
 		endpoint = self.customRPC;
 		if endpoint is None:
-			endpoint = 'https://' + self.network + '.infura.io/v3/' + self.infuraApiKey;
+			endpoint = w3_by_chain[self.network]
 
 		self.endpoint = endpoint;
 		self.web3 = Web3(Web3.HTTPProvider(endpoint));
