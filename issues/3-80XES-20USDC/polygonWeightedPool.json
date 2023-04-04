@@ -1,0 +1,37 @@
+{
+    /*
+    It is highly recommended that you make a copy of this file before running the script!
+    Once you run the script with a given file, these comments will disappear since to the
+    file will be saved with the poolId encoded in it. The pool generation script can handle
+    reading json files with comments in them, but it cannot recreate them.
+    */
+
+    // Network and Gas Settings
+    "network": "polygon",
+    "gasSpeed":"average", // this can be {slow, average, fast}
+    "gasPriceOverride":"", // setting this to any number will override the gasSpeed
+
+    // Pool Name & Token Symbol
+    "name": "Balancer XES(80%) USDC(20%) Pool Token",
+    "symbol": "B-80XEX-20USDC",
+
+    // Pool Configuration
+    "poolType": "WeightedPool",
+    "swapFeePercent": "0.1",
+    "fromInternalBalance": false,
+    "owner": "0x0000000000000000000000000000000000000000",
+    "tokens": {
+        "0x8c9e6c40d3402480ace624730524facc5482798c": {
+            "weight": "0.8",
+            "initialBalance": "221078033",
+            "rateProvider": "0x0000000000000000000000000000000000000000",
+            "allowance": -1
+        },
+        "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": {
+            "weight": "0.2",
+            "initialBalance": "20",
+            "rateProvider": "0x0000000000000000000000000000000000000000",
+            "allowance": -1
+        }
+    }
+}
