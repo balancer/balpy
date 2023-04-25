@@ -5,9 +5,6 @@ from functools import cache
 import requests as r
 import web3
 
-from enum import Enum
-
-
 
 @cache
 def get_web3_instance():
