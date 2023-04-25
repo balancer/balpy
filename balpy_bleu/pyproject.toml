@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "balpy_bleu"
+version = "0.0.0"
+description = "Balancer V2 Python API remixed by bleu"
+authors = [
+    "Greg <greg@orb.cl>",
+    "Pedro Fracari <pedro@bleu.studio>",
+    "José Ribeiro <jose@bleu.studio>",
+]
+license = "GNU GPL 3"
+
+[tool.poetry.dependencies]
+python = ">=3.9, <4.0"
+requests = "2.25.1"
+gql = "2.0.0"
+multicaller = ">=0.0.0a10"
+jstyleson = "0.0.2"
+web3 = "^6.2.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "*"
+ipykernel = "^6.22.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
