@@ -1,29 +1,24 @@
 import json
 import os
-from functools import cache
-
 import requests as r
 import web3
 
 
-@cache
 def get_web3_instance():
-    return web3.AsyncWeb3(
-        web3.AsyncHTTPProvider(
-            f"https://eth.llamarpc.com/rpc/{os.getenv('LLAMA_PROJECT_ID')}"
+    return web3.Web3(
+        web3.HTTPProvider(
+            f"https://eth-goerli.g.alchemy.com/v2/{os.getenv('ALCHEMY_API_KEY')}"
         )
     )
 
 
-@cache
 def get_abi_from_etherscan(contract_address):
     response = r.get(
-        f"https://api.etherscan.io/api?module=contract&action=getabi&address={contract_address}"
+        f"https://api-goerli.etherscan.io/api?module=contract&action=getabi&address={contract_address}"
     ).json()
     return json.loads(response["result"])
 
 
-@cache
 def get_web3_contract(contract_address):
     w3 = get_web3_instance()
     return w3.eth.contract(
