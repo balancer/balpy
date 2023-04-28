@@ -29,8 +29,8 @@ class Vault:
         return self.sendTx(tx)
 
     def buildTx(self, fn):
-        # gasEstimate = self.estimateGas()
-        gasEstimate = fn.gas_estimate()
+        gasEstimate = self.estimateGas()
+        import pdb; pdb.set_trace()
         return fn.build_transaction({
             'chainId': self.chain.id,
             'gas': gasEstimate,
@@ -40,6 +40,7 @@ class Vault:
     
     def sendTx(self, tx):
         signedTx = Account.sign_transaction(tx, self.private_key)
+        import pdb; pdb.set_trace()
         return self.web3.eth.send_raw_transaction(signedTx.rawTransaction)
 
     def exitPool(
@@ -74,13 +75,36 @@ class Vault:
 
 if __name__ == '__main__':
     vault = Vault()
-    test_exit_0 = {
-        "poolId": "0x9f1f16b025f703ee985b58ced48daf93dad2f7ef000200000000000000000063",
-        "address": "0x76b0340e50BD9883D8B2CA5fd9f52439a9e7Cf58",
-        "bptAmount": 1,
-        "tokenList": ["0xdfcea9088c8a88a76ff74892c1457c17dfeef9c1", "0xe0c9275e44ea80ef17579d33c55136b7da269aeb"],
-        "exitType": "EXACT_BPT_IN_FOR_ONE_TOKEN_OUT",
-        "tokenOut": 0,
+    # test_exit_0 = {
+    #     "poolId": "0x9f1f16b025f703ee985b58ced48daf93dad2f7ef000200000000000000000063".lower(),
+    #     "address": "0x76b0340e50BD9883D8B2CA5fd9f52439a9e7Cf58".lower(),
+    #     "bptAmount": 0.01,
+    #     "tokenList": ["0xdfcea9088c8a88a76ff74892c1457c17dfeef9c1".lower(), "0xe0c9275e44ea80ef17579d33c55136b7da269aeb".lower()],
+    #     "exitType": "EXACT_BPT_IN_FOR_ONE_TOKEN_OUT",
+    #     "tokenOut": 0,
+    # }
+
+    # print(vault.exitPool(**test_exit_0))
+
+    test_exit_1 = {
+        "poolId": "0x9f1f16b025f703ee985b58ced48daf93dad2f7ef000200000000000000000063".lower(),
+        "address": "0x76b0340e50BD9883D8B2CA5fd9f52439a9e7Cf58".lower(),
+        "bptAmount": 100000000,
+        "tokenList": ["0xdfcea9088c8a88a76ff74892c1457c17dfeef9c1".lower(), "0xe0c9275e44ea80ef17579d33c55136b7da269aeb".lower()],
+        "exitType": "EXACT_BPT_IN_FOR_TOKENS_OUT",
     }
 
-    print(vault.exitPool(**test_exit_0))
+    print(vault.exitPool(**test_exit_2))
+
+    # test_exit_2 = {
+    #     "poolId": "0x9f1f16b025f703ee985b58ced48daf93dad2f7ef000200000000000000000063".lower(),
+    #     "address": "0x76b0340e50BD9883D8B2CA5fd9f52439a9e7Cf58".lower(),
+    #     "bptAmount": 100000000,
+    #     "tokenList": ["0xdfcea9088c8a88a76ff74892c1457c17dfeef9c1".lower(), "0xe0c9275e44ea80ef17579d33c55136b7da269aeb".lower()],
+    #     "amountsOut":[],
+    #     "exitType": "BPT_IN_FOR_EXACT_TOKENS_OUT",
+    # }
+
+    # print(vault.exitPool(**test_exit_2))
+
+    
