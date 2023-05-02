@@ -884,6 +884,10 @@ class balpy(object):
 			rawTokens.append(raw);
 		return(rawTokens);
 
+	def balConvertWeiToToken(self, token, wei):
+		decimals = self.erc20GetDecimals(token)
+		return float(Decimal(wei) / Decimal(10**decimals))
+
 	def balSetOwner(self, poolData):
 		owner = self.ZERO_ADDRESS;
 		if "owner" in poolData.keys():
@@ -1513,6 +1517,26 @@ class balpy(object):
 		txHash = self.balDoBatchSwap(batchSwap, isAsync=False, gasFactor=gasFactor, gasPriceSpeed=gasPriceSpeed, nonceOverride=nonceOverride, gasEstimateOverride=gasEstimateOverride, gasPriceGweiOverride=gasPriceGweiOverride);
 		return(txHash)
 
+	def balDoQueryExitPool(self, poolId, address, exitPoolRequestTuple):
+		bh = self.balLoadContract("BalancerHelpers")
+		return bh.functions.queryExit(poolId, address, address, exitPoolRequestTuple).call()
+
+	def balFormatQueryExitPoolOutput(self, queryExitPoolOutput, tokenList, poolAddress):
+		result = {}
+		bptAmountIn, tokensAmountsOut = queryExitPoolOutput
+		result["bptIn"] = {
+                    "address": poolAddress,
+                    "amount": self.balConvertWeiToToken(poolAddress, bptAmountIn)
+                }
+		result["tokensOut"] = [
+			{
+				"address": address,
+				"amount": self.balConvertWeiToToken(address, amount)
+			}
+			for address, amount in zip(tokenList, tokensAmountsOut)
+		]
+		return result
+
 	def balDoExitPool(
             self,
             poolId,
@@ -1666,10 +1690,11 @@ class balpy(object):
 				exitKindValue, tokenList, bptAmount, amountsOut, minAmountsOut, toInternalBalance)
 
 		if query:
-			# TODO
-			pass
-		else:
-			return self.balDoExitPool(poolId, userAddress, exitPoolRequestTuple, **balDoExitPoolKwargs)
+			tokenListSorted = exitPoolRequestTuple[0]
+			queryOutput = self.balDoQueryExitPool(
+			    poolId, userAddress, exitPoolRequestTuple)
+			return self.balFormatQueryExitPoolOutput(queryOutput, tokenListSorted, poolAddress)
+		return self.balDoExitPool(poolId, userAddress, exitPoolRequestTuple, **balDoExitPoolKwargs)
 
 	def balVaultWeth(self):
 		vault = self.balLoadContract("Vault");
