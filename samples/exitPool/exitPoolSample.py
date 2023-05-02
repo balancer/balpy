@@ -4,50 +4,49 @@ import os
 import jstyleson
 import json
 
+
 def main():
-	
-	if len(sys.argv) < 2:
-		print("Usage: python3", sys.argv[0], "/path/to/exitData.json")
-		quit()
 
-	pathToExit = sys.argv[1]
-	if not os.path.isfile(pathToExit):
-		print("Path", pathToExit, "does not exist. Please enter a valid path.")
-		quit()
+    if len(sys.argv) < 2:
+        print("Usage: python3", sys.argv[0], "/path/to/exitData.json")
+        quit()
 
-	with open(pathToExit) as f:
-		exitData = jstyleson.load(f)
+    pathToExit = sys.argv[1]
+    if not os.path.isfile(pathToExit):
+        print("Path", pathToExit, "does not exist. Please enter a valid path.")
+        quit()
 
-	gasFactor = 1.05
-	gasSpeed = "average"
-	gasPriceGweiOverride = -1 # -1 uses etherscan price at speed for gasSpeed, all other values will override
-	bal = balpy.balpy.balpy(exitData["network"])
+    with open(pathToExit) as f:
+        exitData = jstyleson.load(f)
 
-	print()
-	print("==============================================================")
-	print("================ Step 1: Check Bpt Balance  ==================")
-	print("==============================================================")
-	print()
-	
-	poolAddress = bal.balPooldIdToAddress(exitData["poolId"])
-	if not bal.erc20HasSufficientBalances([poolAddress], [exitData["bptAmount"]]):
-		print("Please fix your insufficient BPT balance before proceeding.")
-		print("Quitting...")
-		quit()
+    bal = balpy.balpy.balpy(exitData["network"])
 
-	print()
-	print("===============================================================")
-	print("================= Step 2: Send Bpt to Pool =================")
-	print("===============================================================")
-	print()
+    print()
+    print("==============================================================")
+    print("================ Step 1: Check Bpt Balance  ==================")
+    print("==============================================================")
+    print()
 
-	query = False
-	exitData.pop("network")
-	output = bal.balExitPool(**exitData, query=query)
+    poolAddress = bal.balPooldIdToAddress(exitData["poolId"])
+    if not bal.erc20HasSufficientBalances([poolAddress], [exitData["bptAmount"]]):
+        print("Please fix your insufficient BPT balance before proceeding.")
+        print("Quitting...")
+        quit()
 
-	if query:
-		print("queryJoin results:")
-		print(json.dumps(output,indent=4))
+    print()
+    print("===============================================================")
+    print("================= Step 2: Send Bpt to Pool =================")
+    print("===============================================================")
+    print()
+
+    query = False
+    exitData.pop("network")
+    output = bal.balExitPool(**exitData, query=query)
+
+    if query:
+        print("queryJoin results:")
+        print(json.dumps(output, indent=4))
+
 
 if __name__ == '__main__':
-	main()
+    main()
