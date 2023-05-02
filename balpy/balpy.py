@@ -1665,11 +1665,11 @@ class balpy(object):
 			exitPoolRequestTuple = self.balFormatExitPoolRequestTupleBptInForExactTokensOut(
 				exitKindValue, tokenList, bptAmount, amountsOut, minAmountsOut, toInternalBalance)
 
-			if query:
-				# TODO
-				pass
-			else:
-				return self.balDoExitPool(poolId, userAddress, exitPoolRequestTuple, **balDoExitPoolKwargs)
+		if query:
+			# TODO
+			pass
+		else:
+			return self.balDoExitPool(poolId, userAddress, exitPoolRequestTuple, **balDoExitPoolKwargs)
 
 	def balVaultWeth(self):
 		vault = self.balLoadContract("Vault");
