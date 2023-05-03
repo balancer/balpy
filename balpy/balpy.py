@@ -268,7 +268,7 @@ class balpy(object):
 		3:"TRANSFER_EXTERNAL"
 	};
 	def __init__(self, network=None, verbose=True, customConfigFile=None, manualEnv={}):
-		super(balpy, self).__init__()
+		super(balpy, self).__init__();
 
 		self.verbose = verbose;
 		if self.verbose:
@@ -311,13 +311,13 @@ class balpy(object):
 			print("\t\t\tOR")
 			print("\t\texport " + self.envVarCustomRPC + "=<yourCustomRPC>");
 			print("\n\t\tNOTE: if you set " + self.envVarCustomRPC + ", it will override your Infura API key!")
-			quit()
+			quit();
 
 		if self.etherscanApiKey is None or self.privateKey is None:
 			self.ERROR("You need to add your keys to the your environment variables");
 			print("\t\texport " + self.envVarEtherscan + "=<yourEtherscanApiKey>");
 			print("\t\texport " + self.envVarPrivate + "=<yourPrivateKey>");
-			quit()
+			quit();
 
 		endpoint = self.customRPC;
 		if endpoint is None:
