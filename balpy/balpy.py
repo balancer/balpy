@@ -1515,6 +1515,11 @@ class balpy(object):
 		wethAddress = vault.functions.WETH().call();
 		return(wethAddress);
 
+	def balVaultGetAuthorizer(self):
+		vault = self.balLoadContract("Vault")
+		authorizerAddress = vault.functions.getAuthorizer().call()
+		return authorizerAddress
+
 	def balBalancerHelpersGetVault(self):
 		bh = self.balLoadContract("BalancerHelpers");
 		vaultAddress = bh.functions.vault().call();
@@ -1542,6 +1547,47 @@ class balpy(object):
 			decimals = self.erc20GetDecimals(token);
 			internalBalances[token] = Decimal(balances[i]) * Decimal(10**(-decimals));
 		return(internalBalances);
+
+	def balVaultGetPool(self, poolId):
+		vault = self.balLoadContract("Vault")
+		address, specialization = vault.functions.getPool(poolId).call()
+		return address, specialization
+
+	def balVaultGetPoolTokenInfo(self, poolId, tokenAddress):
+		vault = self.balLoadContract("Vault")
+		tokenInfo = vault.functions.getPoolTokenInfo(poolId, tokenAddress).call()
+		cash, managed, lastChangeBlock, assetManager = tokenInfo
+		return cash, managed, lastChangeBlock, assetManager
+
+	def balVaultGetProtocolFeesCollector(self):
+		vault = self.balLoadContract("Vault")
+		address = vault.functions.getProtocolFeesCollector().call()
+		return address
+
+	def balVaultHasApprovedRelayer(self, userAddress, relayerAddress):
+		vault = self.balLoadContract("Vault")
+		hasApprovedRelayer = vault.functions.hasApprovedRelayer(
+		    userAddress, relayerAddress).call()
+		return hasApprovedRelayer
+
+	def balVaultSetAuthorizer(self, newAuthorizerAddress, isAsync=False, **buildTxKwargs):
+		vault = self.balLoadContract("Vault")
+		setAuthorizerFn = vault.functions.newAuthorizer(newAuthorizerAddress)
+		tx = self.buildTx(setAuthorizerFn, **buildTxKwargs)
+		return self.sendTx(tx, isAsync)
+
+	def balVaultSetPaused(self, paused, isAsync, **buildTxKwargs):
+		vault = self.balLoadContract("Vault")
+		setPausedFn = vault.functions.setPaused(paused)
+		tx = self.buildTx(setPausedFn, **buildTxKwargs)
+		return self.sendTx(tx, isAsync)
+
+	def balVaultSetRelayerApproval(self, senderAddress, relayerAddress, approved, isAsync=False, **buildTxKwargs):
+		vault = self.balLoadContract("Vault")
+		setRelayerApprovalFn = vault.functions.setRelayerApproval(
+		    senderAddress, relayerAddress, approved)
+		tx = self.buildTx(setRelayerApprovalFn, **buildTxKwargs)
+		return self.sendTx(tx, isAsync)
 
 	def balVaultDoManageUserBalance(self, kind, token, amount, sender, recipient, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 		if self.verbose:
