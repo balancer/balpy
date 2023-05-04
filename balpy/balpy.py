@@ -1556,10 +1556,7 @@ class balpy(object):
 	def balVaultGetPoolTokenInfo(self, poolId, tokenAddress):
 		vault = self.balLoadContract("Vault")
 		tokenInfo = vault.functions.getPoolTokenInfo(poolId, tokenAddress).call()
-		cash = tokenInfo[0]
-		managed = tokenInfo[1]
-		lastChangeBlock = tokenInfo[2]
-		assetManager = tokenInfo[3]
+		cash, managed, lastChangeBlock, assetManager = tokenInfo
 		return cash, managed, lastChangeBlock, assetManager
 
 	def balVaultGetProtocolFeesCollector(self):
