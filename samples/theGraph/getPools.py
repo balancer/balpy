@@ -4,7 +4,7 @@ import balpy.graph.graph as balGraph
 
 def main():
 	
-	batch_size = 5;
+	batch_size = 100;
 	print();
 
 	if len(sys.argv) < 2:

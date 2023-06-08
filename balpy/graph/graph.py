@@ -98,8 +98,6 @@ class TheGraph(object):
 			decimals
 			address
 			balance
-			invested
-			investments
 			weight
 		  }}
 		}}
