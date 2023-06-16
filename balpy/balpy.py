@@ -1578,7 +1578,7 @@ class balpy(object):
             bptAmount,
             tokenOut,
             minAmountsOut,
-            toInternalBalance=True
+            toInternalBalance=False
         ):
 		tokenList, tokenOut, minAmountsOut = self.balSortTokensExitPoolExactBptInForOneTokenOut(
 		    tokenList, tokenOut, minAmountsOut)
@@ -1602,7 +1602,7 @@ class balpy(object):
             tokenList,
             bptAmount,
             minAmountsOut,
-            toInternalBalance=True
+            toInternalBalance=False
         ):
 		tokenList, minAmountsOut = self.balSortTokensExitPoolExactBptInForTokensOut(
 		    tokenList, minAmountsOut)
@@ -1630,7 +1630,7 @@ class balpy(object):
                 maxBptAmount,
                 amountsOut,
                 minAmountOut,
-                toInternalBalance=True):
+                toInternalBalance=False):
 		amountsOut = self.balConvertTokensToWei(tokenList, amountsOut)
 		tokenList, amountsOut, minAmountOut = self.balSortTokensExitPoolBptInForExactTokensOut(
 		    tokenList, amountsOut, minAmountOut)
@@ -1647,7 +1647,7 @@ class balpy(object):
             tokenOut: int = None,
             amountsOut: List[int] = [],
             query: bool = False,
-            toInternalBalance: bool = True,
+            toInternalBalance: bool = False,
             minAmountsOut: List[float] = None,
             **balDoExitPoolKwargs
         ):
@@ -1767,11 +1767,11 @@ class balpy(object):
 		tx = self.buildTx(setPausedFn, **buildTxKwargs)
 		return self.sendTx(tx, isAsync)
 
-	def balVaultSetRelayerApproval(self, senderAddress, relayerAddress, approved, isAsync=False, **buildTxKwargs):
+	def balVaultSetRelayerApproval(self, senderAddress, relayerAddress, approved, isAsync=False, gasFactor=1.05, **buildTxKwargs):
 		vault = self.balLoadContract("Vault")
 		setRelayerApprovalFn = vault.functions.setRelayerApproval(
 		    senderAddress, relayerAddress, approved)
-		tx = self.buildTx(setRelayerApprovalFn, **buildTxKwargs)
+		tx = self.buildTx(setRelayerApprovalFn, gasFactor, **buildTxKwargs)
 		return self.sendTx(tx, isAsync)
 
 	def balVaultDoManageUserBalance(self, kind, token, amount, sender, recipient, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
