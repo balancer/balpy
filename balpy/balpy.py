@@ -4,7 +4,7 @@
 import copy
 import json
 import os
-import requests
+# import requests
 import time
 import sys
 import pkgutil
@@ -1739,6 +1739,7 @@ class balpy(object):
 
 	def balVaultGetPoolTokenInfo(self, poolId, tokenAddress):
 		vault = self.balLoadContract("Vault")
+		tokenAddress = self.web3.toChecksumAddress(tokenAddress)
 		tokenInfo = vault.functions.getPoolTokenInfo(poolId, tokenAddress).call()
 		cash, managed, lastChangeBlock, assetManager = tokenInfo
 		return cash, managed, lastChangeBlock, assetManager
