@@ -98,7 +98,7 @@ class balpy(object):
 						"ropsten":	{"id":3,		"blockExplorerUrl":"ropsten.etherscan.io"													},
 						"rinkeby":	{"id":4,		"blockExplorerUrl":"rinkeby.etherscan.io"													},
 						"goerli":	{"id":5,		"blockExplorerUrl":"goerli.etherscan.io"													},
-						"optimism":	{"id":10,		"blockExplorerUrl":"optimistic.etherscan.io"													},
+						"optimism":	{"id":10,		"blockExplorerUrl":"optimistic.etherscan.io"												},
 						"kovan":	{"id":42,		"blockExplorerUrl":"kovan.etherscan.io",			"balFrontend":"kovan.balancer.fi/#/"	},
 						"polygon":	{"id":137,		"blockExplorerUrl":"polygonscan.com",				"balFrontend":"polygon.balancer.fi/#/"	},
 						"fantom":	{"id":250,		"blockExplorerUrl":"ftmscan.com",					"balFrontend":"app.beets.fi/#/"			},
@@ -1519,33 +1519,22 @@ class balpy(object):
 		bh = self.balLoadContract("BalancerHelpers")
 		return bh.functions.queryExit(poolId, address, address, exitPoolRequestTuple).call()
 
-	def balFormatQueryExitPoolOutput(self, queryExitPoolOutput, tokenList, poolAddress):
+	def balFormatQueryExitPoolOutput(self, queryExitPoolOutput, tokens, poolAddress):
 		result = {}
 		bptAmountIn, tokensAmountsOut = queryExitPoolOutput
 		result["bptIn"] = {
                     "address": poolAddress,
                     "amount": self.balConvertWeiToToken(poolAddress, bptAmountIn)
                 }
-		result["tokensOut"] = [
-			{
+		result["tokensOut"] = []
+		for address, amount in zip(tokens, tokensAmountsOut):
+			result["tokensOut"].append({
 				"address": address,
 				"amount": self.balConvertWeiToToken(address, amount)
-			}
-			for address, amount in zip(tokenList, tokensAmountsOut)
-		]
+			})
 		return result
 
-	def balDoExitPool(
-            self,
-            poolId,
-            address,
-            exitPoolRequestTuple,
-            gasFactor=1.05,
-            gasPriceSpeed="average",
-            nonceOverride=-1,
-            gasEstimateOverride=-1,
-            gasPriceGweiOverride=-1
-        ):
+	def balDoExitPool(self, poolId, address, exitPoolRequestTuple, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 		vault = self.balLoadContract("Vault")
 		exitPoolFunction = vault.functions.exitPool(
 		    poolId, address, address, exitPoolRequestTuple)
@@ -1553,146 +1542,77 @@ class balpy(object):
 		                  nonceOverride, gasEstimateOverride, gasPriceGweiOverride)
 		return self.sendTx(tx)
 
-	def balConvertMinAmountsOut(self, tokenList, minAmountsOut):
-		if minAmountsOut is None:
-			return [0] * len(tokenList)
-		else:
-			return self.balConvertTokensToWei(tokenList, minAmountsOut)
-
-	def balSortTokensExitPoolExactBptInForOneTokenOut(self, tokenList, tokenOut, minAmountsOut):
-		tokenListAddresses = [self.web3.toChecksumAddress(
-		    token) for token in tokenList]
-		minAmountsOutSorted = [
-			minAmountOut
-			for _, minAmountOut in sorted(zip(tokenListAddresses, minAmountsOut))
-		]
-		tokenOutAddress = self.web3.toChecksumAddress(tokenListAddresses[tokenOut])
-		tokenListAddressSorted = sorted(tokenListAddresses)
-		tokenOutSorted = tokenListAddressSorted.index(tokenOutAddress)
-		return tokenListAddressSorted, tokenOutSorted, minAmountsOutSorted
-
-	def balFormatExitPoolRequestTupleExactBptInForOneTokenOut(
-            self,
-            exitKindValue,
-            tokenList,
-            bptAmount,
-            tokenOut,
-            minAmountsOut,
-            toInternalBalance=True
-        ):
-		tokenList, tokenOut, minAmountsOut = self.balSortTokensExitPoolExactBptInForOneTokenOut(
-		    tokenList, tokenOut, minAmountsOut)
+	def balFormatExitPoolRequestTupleExactBptInForOneTokenOut(self, exitKindValue, tokens, bptAmount, tokenOut, minAmountsOut, toInternalBalance=False):
+		minAmountsOut = self.balConvertTokensToWei(tokens, minAmountsOut)
 		userData = eth_abi.encode_abi(["uint256", "uint256", "uint256"], [
 		                              exitKindValue, bptAmount, tokenOut])
-		return tokenList, minAmountsOut, userData, toInternalBalance
+		return tokens, minAmountsOut, userData, toInternalBalance
 
-	def balSortTokensExitPoolExactBptInForTokensOut(self, tokenList, minAmountsOut):
-		tokenListAddresses = [self.web3.toChecksumAddress(
-		    token) for token in tokenList]
-		minAmountsOutSorted = [
-			minAmountOut
-			for _, minAmountOut in sorted(zip(tokenListAddresses, minAmountsOut))
-		]
-		tokenListAddressSorted = sorted(tokenListAddresses)
-		return tokenListAddressSorted, minAmountsOutSorted
-
-	def balFormatExitPoolRequestTupleExactBptInForTokensOut(
-            self,
-            exitKindValue,
-            tokenList,
-            bptAmount,
-            minAmountsOut,
-            toInternalBalance=True
-        ):
-		tokenList, minAmountsOut = self.balSortTokensExitPoolExactBptInForTokensOut(
-		    tokenList, minAmountsOut)
+	def balFormatExitPoolRequestTupleExactBptInForTokensOut(self, exitKindValue, tokens, bptAmount, minAmountsOut, toInternalBalance=False):
+		minAmountsOut = self.balConvertTokensToWei(tokens, minAmountsOut)
 		userData = eth_abi.encode_abi(["uint256", "uint256"], [
 		                              exitKindValue, bptAmount])
-		return tokenList, minAmountsOut, userData, toInternalBalance
+		return tokens, minAmountsOut, userData, toInternalBalance
 
-	def balSortTokensExitPoolBptInForExactTokensOut(self, tokenList, amountsOut, minAmountsOut):
-		tokenListAddresses = [self.web3.toChecksumAddress(
-		    token) for token in tokenList]
-		minAmountsOutSorted = [
-			minAmountOut
-			for _, minAmountOut in sorted(zip(tokenListAddresses, minAmountsOut))
-		]
-		amountsOutSorted = [
-			amountOut for _, amountOut in sorted(zip(tokenListAddresses, amountsOut))
-		]
-		tokenListAddressSorted = sorted(tokenListAddresses)
-		return tokenListAddressSorted, amountsOutSorted, minAmountsOutSorted
 
-	def balFormatExitPoolRequestTupleBptInForExactTokensOut(
-                self,
-                exitKindValue,
-                tokenList,
-                maxBptAmount,
-                amountsOut,
-                minAmountOut,
-                toInternalBalance=True):
-		amountsOut = self.balConvertTokensToWei(tokenList, amountsOut)
-		tokenList, amountsOut, minAmountOut = self.balSortTokensExitPoolBptInForExactTokensOut(
-		    tokenList, amountsOut, minAmountOut)
+	def balFormatExitPoolRequestTupleBptInForExactTokensOut(self, exitKindValue, tokens, maxBptAmount, amountsOut, minAmountsOut, toInternalBalance=False):
+		amountsOut = self.balConvertTokensToWei(tokens, amountsOut)
+		minAmountsOut = self.balConvertTokensToWei(tokens, minAmountsOut)
 		userData = eth_abi.encode_abi(["uint256", "uint256[]", "uint256"], [
 		                              exitKindValue, amountsOut, maxBptAmount])
-		return tokenList, minAmountOut, userData, toInternalBalance
+		return tokens, minAmountsOut, userData, toInternalBalance
 
-	def balExitPool(
-            self,
-            poolId: str,
-            bptAmount: float,
-            tokenList: List[str],
-            exitKind: str,
-            tokenOut: int = None,
-            amountsOut: List[int] = [],
-            query: bool = False,
-            toInternalBalance: bool = True,
-            minAmountsOut: List[float] = None,
-            **balDoExitPoolKwargs
-        ):
-		"""
-		poolId: Id of the pool to exit
-		bptAmount: Amount of BPTs to burn (if exitKind == "EXACT_BPT_IN_FOR_ONE_TOKEN_OUT" or "EXACT_BPT_IN_FOR_TOKENS_OUT")
-					or max amount of BPTs to burn (if exitKind == "BPT_IN_FOR_EXACT_TOKENS_OUT")
-		tokenList: List of token addresses of the pool
-		exitKind: "EXACT_BPT_IN_FOR_ONE_TOKEN_OUT", "EXACT_BPT_IN_FOR_TOKENS_OUT", or "BPT_IN_FOR_EXACT_TOKENS_OUT"
-		tokenOut: Index of the token (related to tokenList order) to receive (if exitKind == "EXACT_BPT_IN_FOR_ONE_TOKEN_OUT")
-		amountsOut: List of amounts of tokens (same order of tokenList) to receive (if exitKind == "BPT_IN_FOR_EXACT_TOKENS_OUT")
-		query: If True, returns the transaction object without sending the transaction
-		toInternalBalance: If True, the tokens received will be sent to the internal Balancer wallet of the user
-		minAmountsOut: List of minimum amounts of tokens (same order of tokenList) to receive
-		**balDoExitPoolKwargs: Keyword arguments to pass to the balDoExitPool function:
-			- gasFactor=1.05
-			- gasPriceSpeed="average"
-			- nonceOverride=-1
-			- gasEstimateOverride=-1
-			- gasPriceGweiOverride=-1
-		"""
+
+	def balSortTokensExitPool(self, tokens):
+		tokenKeys = tokens.keys() # the token key is the address string
+		tokenAddresses = []
+		for tokenKey in tokenKeys:
+			tokenAddresses.append(self.web3.toChecksumAddress(tokenKey))
+		minAmountsOutSorted = []
+		tokenAddressesSorted = []
+		amountsOutSorted = []
+
+		for tokenAddresses, tokenKey in sorted(zip(tokenAddresses, tokenKeys)):
+			tokenAddressesSorted.append(tokenAddresses)
+			minAmountsOutSorted.append(float(tokens[tokenKey].get("minAmount", 0)))
+			amountsOutSorted.append(float(tokens[tokenKey].get("amount", 0)))
+
+		tokenOutSorted = None
+		if max(amountsOutSorted)==sum(amountsOutSorted):
+			tokenOutSorted = amountsOutSorted.index(max(amountsOutSorted))
+		return tokenAddressesSorted, amountsOutSorted, minAmountsOutSorted, tokenOutSorted
+   
+
+	def balExitPool(self, exitDescription, query=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		exitKind = exitDescription["exitKind"]
+		poolId = exitDescription["poolId"]
+		tokens = exitDescription["tokens"]
+		toInternalBalance = exitDescription.get("toInternalBalance", False)
+
 		poolAddress = self.balPooldIdToAddress(poolId)
 		exitKindValue = WeightedPoolExitKind[exitKind].value
-		bptAmount = self.balConvertTokensToWei([poolAddress], [bptAmount])[0]
+		bptAmount = self.balConvertTokensToWei([poolAddress], [float(exitDescription["bptAmount"])])[0]
 		userAddress = self.web3.toChecksumAddress(self.web3.eth.default_account)
-		minAmountsOut = self.balConvertMinAmountsOut(tokenList, minAmountsOut)
+		tokenAddresses, amountsOut, minAmountsOut, tokenOut  = self.balSortTokensExitPool(tokens)
 
 		if exitKind == "EXACT_BPT_IN_FOR_ONE_TOKEN_OUT":
 			exitPoolRequestTuple = self.balFormatExitPoolRequestTupleExactBptInForOneTokenOut(
-				exitKindValue, tokenList, bptAmount, tokenOut, minAmountsOut, toInternalBalance)
+				exitKindValue, tokenAddresses, bptAmount, tokenOut, minAmountsOut, toInternalBalance)
 		elif exitKind == "EXACT_BPT_IN_FOR_TOKENS_OUT":
 			exitPoolRequestTuple = self.balFormatExitPoolRequestTupleExactBptInForTokensOut(
-				exitKindValue, tokenList, bptAmount, minAmountsOut, toInternalBalance)
+				exitKindValue, tokenAddresses, bptAmount, minAmountsOut, toInternalBalance)
 		elif exitKind == "BPT_IN_FOR_EXACT_TOKENS_OUT":
 			if query:
 				bptAmount = self.balConvertTokensToWei([poolAddress], [self.INFINITE])[0]
 			exitPoolRequestTuple = self.balFormatExitPoolRequestTupleBptInForExactTokensOut(
-				exitKindValue, tokenList, bptAmount, amountsOut, minAmountsOut, toInternalBalance)
+				exitKindValue, tokenAddresses, bptAmount, amountsOut, minAmountsOut, toInternalBalance)
 
 		if query:
-			tokenListSorted = exitPoolRequestTuple[0]
+			tokensSorted = exitPoolRequestTuple[0]
 			queryOutput = self.balDoQueryExitPool(
 			    poolId, userAddress, exitPoolRequestTuple)
-			return self.balFormatQueryExitPoolOutput(queryOutput, tokenListSorted, poolAddress)
-		return self.balDoExitPool(poolId, userAddress, exitPoolRequestTuple, **balDoExitPoolKwargs)
+			return self.balFormatQueryExitPoolOutput(queryOutput, tokensSorted, poolAddress)
+		return self.balDoExitPool(poolId, userAddress, exitPoolRequestTuple, gasFactor=gasFactor, gasPriceSpeed=gasPriceSpeed, nonceOverride=nonceOverride, gasEstimateOverride=gasEstimateOverride, gasPriceGweiOverride=gasPriceGweiOverride)
 
 	def balVaultWeth(self):
 		vault = self.balLoadContract("Vault");
@@ -1739,6 +1659,7 @@ class balpy(object):
 
 	def balVaultGetPoolTokenInfo(self, poolId, tokenAddress):
 		vault = self.balLoadContract("Vault")
+		tokenAddress = self.web3.toChecksumAddress(tokenAddress)
 		tokenInfo = vault.functions.getPoolTokenInfo(poolId, tokenAddress).call()
 		cash, managed, lastChangeBlock, assetManager = tokenInfo
 		return cash, managed, lastChangeBlock, assetManager
@@ -1766,11 +1687,11 @@ class balpy(object):
 		tx = self.buildTx(setPausedFn, **buildTxKwargs)
 		return self.sendTx(tx, isAsync)
 
-	def balVaultSetRelayerApproval(self, senderAddress, relayerAddress, approved, isAsync=False, **buildTxKwargs):
+	def balVaultSetRelayerApproval(self, senderAddress, relayerAddress, approved, isAsync=False, gasFactor=1.05, **buildTxKwargs):
 		vault = self.balLoadContract("Vault")
 		setRelayerApprovalFn = vault.functions.setRelayerApproval(
 		    senderAddress, relayerAddress, approved)
-		tx = self.buildTx(setRelayerApprovalFn, **buildTxKwargs)
+		tx = self.buildTx(setRelayerApprovalFn, gasFactor, **buildTxKwargs)
 		return self.sendTx(tx, isAsync)
 
 	def balVaultDoManageUserBalance(self, kind, token, amount, sender, recipient, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):

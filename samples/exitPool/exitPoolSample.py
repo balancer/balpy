@@ -6,7 +6,6 @@ import json
 
 
 def main():
-
     if len(sys.argv) < 2:
         print("Usage: python3", sys.argv[0], "/path/to/exitData.json")
         quit()
@@ -23,7 +22,7 @@ def main():
 
     print()
     print("==============================================================")
-    print("================ Step 1: Check Bpt Balance  ==================")
+    print("================ Step 1: Check Bpt Balance ===================")
     print("==============================================================")
     print()
 
@@ -34,17 +33,16 @@ def main():
         quit()
 
     print()
-    print("===============================================================")
-    print("================= Step 2: Send Bpt to Pool =================")
-    print("===============================================================")
+    print("==============================================================")
+    print("================== Step 2: Send Bpt to Pool ==================")
+    print("==============================================================")
     print()
 
     query = False
-    exitData.pop("network")
-    output = bal.balExitPool(**exitData, query=query)
+    output = bal.balExitPool(exitData, query=query)
 
     if query:
-        print("queryJoin results:")
+        print("queryExit results:")
         print(json.dumps(output, indent=4))
 
 
