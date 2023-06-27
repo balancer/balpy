@@ -1,0 +1,15 @@
+{
+  "__comment": "Even though this is a single token join, you must still pass all token addresses for proper indexing. The token out used is the only one with an amount > 0",
+  "network": "goerli",
+  "poolId": "0x9f1f16b025f703ee985b58ced48daf93dad2f7ef000200000000000000000063",
+  "bptAmount": "0.1",
+  "exitKind": "EXACT_BPT_IN_FOR_ONE_TOKEN_OUT",
+  "toInternalBalance": false,
+  "tokens": {
+    "0xdfcea9088c8a88a76ff74892c1457c17dfeef9c1": {
+      "amount": "1",
+      "minAmountOut": "0"
+    },
+    "0xe0c9275e44ea80ef17579d33c55136b7da269aeb": {}
+  }
+}

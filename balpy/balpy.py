@@ -881,6 +881,10 @@ class balpy(object):
 			rawTokens.append(raw);
 		return(rawTokens);
 
+	def balConvertWeiToToken(self, token, wei):
+		decimals = self.erc20GetDecimals(token)
+		return float(Decimal(wei) / Decimal(10**decimals))
+
 	def balSetOwner(self, poolData):
 		owner = self.ZERO_ADDRESS;
 		if "owner" in poolData.keys():
@@ -1510,10 +1514,116 @@ class balpy(object):
 		txHash = self.balDoBatchSwap(batchSwap, isAsync=False, gasFactor=gasFactor, gasPriceSpeed=gasPriceSpeed, nonceOverride=nonceOverride, gasEstimateOverride=gasEstimateOverride, gasPriceGweiOverride=gasPriceGweiOverride);
 		return(txHash)
 
+	def balDoQueryExitPool(self, poolId, address, exitPoolRequestTuple):
+		bh = self.balLoadContract("BalancerHelpers")
+		return bh.functions.queryExit(poolId, address, address, exitPoolRequestTuple).call()
+
+	def balFormatQueryExitPoolOutput(self, queryExitPoolOutput, tokens, poolAddress):
+		result = {}
+		bptAmountIn, tokensAmountsOut = queryExitPoolOutput
+		result["bptIn"] = {
+                    "address": poolAddress,
+                    "amount": self.balConvertWeiToToken(poolAddress, bptAmountIn)
+                }
+		result["tokensOut"] = []
+		for address, amount in zip(tokens, tokensAmountsOut):
+			result["tokensOut"].append({
+				"address": address,
+				"amount": self.balConvertWeiToToken(address, amount)
+			})
+		return result
+
+	def balDoExitPool(self, poolId, address, exitPoolRequestTuple, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		vault = self.balLoadContract("Vault")
+		exitPoolFunction = vault.functions.exitPool(
+		    poolId, address, address, exitPoolRequestTuple)
+		tx = self.buildTx(exitPoolFunction, gasFactor, gasPriceSpeed,
+		                  nonceOverride, gasEstimateOverride, gasPriceGweiOverride)
+		return self.sendTx(tx)
+
+	def balFormatExitPoolRequestTupleExactBptInForOneTokenOut(self, exitKindValue, tokens, bptAmount, tokenOut, minAmountsOut, toInternalBalance=False):
+		minAmountsOut = self.balConvertTokensToWei(tokens, minAmountsOut)
+		userData = eth_abi.encode_abi(["uint256", "uint256", "uint256"], [
+		                              exitKindValue, bptAmount, tokenOut])
+		return tokens, minAmountsOut, userData, toInternalBalance
+
+	def balFormatExitPoolRequestTupleExactBptInForTokensOut(self, exitKindValue, tokens, bptAmount, minAmountsOut, toInternalBalance=False):
+		minAmountsOut = self.balConvertTokensToWei(tokens, minAmountsOut)
+		userData = eth_abi.encode_abi(["uint256", "uint256"], [
+		                              exitKindValue, bptAmount])
+		return tokens, minAmountsOut, userData, toInternalBalance
+
+
+	def balFormatExitPoolRequestTupleBptInForExactTokensOut(self, exitKindValue, tokens, maxBptAmount, amountsOut, minAmountsOut, toInternalBalance=False):
+		amountsOut = self.balConvertTokensToWei(tokens, amountsOut)
+		minAmountsOut = self.balConvertTokensToWei(tokens, minAmountsOut)
+		userData = eth_abi.encode_abi(["uint256", "uint256[]", "uint256"], [
+		                              exitKindValue, amountsOut, maxBptAmount])
+		return tokens, minAmountsOut, userData, toInternalBalance
+
+
+	def balSortTokensExitPool(self, tokens):
+		tokenKeys = tokens.keys() # the token key is the address string
+		tokenAddresses = []
+		for tokenKey in tokenKeys:
+			tokenAddresses.append(self.web3.toChecksumAddress(tokenKey))
+		minAmountsOutSorted = []
+		tokenAddressesSorted = []
+		amountsOutSorted = []
+
+		for tokenAddresses, tokenKey in sorted(zip(tokenAddresses, tokenKeys)):
+			tokenAddressesSorted.append(tokenAddresses)
+			minAmountsOutSorted.append(float(tokens[tokenKey].get("minAmount", 0)))
+			amountsOutSorted.append(float(tokens[tokenKey].get("amount", 0)))
+
+		tokenOutSorted = None
+		if max(amountsOutSorted)==sum(amountsOutSorted):
+			tokenOutSorted = amountsOutSorted.index(max(amountsOutSorted))
+		return tokenAddressesSorted, amountsOutSorted, minAmountsOutSorted, tokenOutSorted
+   
+
+	def balExitPool(self, exitDescription, query=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		exitKind = exitDescription["exitKind"]
+		poolId = exitDescription["poolId"]
+		tokens = exitDescription["tokens"]
+		toInternalBalance = exitDescription.get("toInternalBalance", False)
+
+		poolAddress = self.balPooldIdToAddress(poolId)
+		exitKindValue = WeightedPoolExitKind[exitKind].value
+		userAddress = self.web3.toChecksumAddress(self.web3.eth.default_account)
+		tokenAddresses, amountsOut, minAmountsOut, tokenOut  = self.balSortTokensExitPool(tokens)
+
+		if exitKind == "EXACT_BPT_IN_FOR_ONE_TOKEN_OUT":
+			bptAmount = self.balConvertTokensToWei([poolAddress], [float(exitDescription["bptAmount"])])[0]
+			exitPoolRequestTuple = self.balFormatExitPoolRequestTupleExactBptInForOneTokenOut(
+				exitKindValue, tokenAddresses, bptAmount, tokenOut, minAmountsOut, toInternalBalance)
+		elif exitKind == "EXACT_BPT_IN_FOR_TOKENS_OUT":
+			bptAmount = self.balConvertTokensToWei([poolAddress], [float(exitDescription["bptAmount"])])[0]
+			exitPoolRequestTuple = self.balFormatExitPoolRequestTupleExactBptInForTokensOut(
+				exitKindValue, tokenAddresses, bptAmount, minAmountsOut, toInternalBalance)
+		elif exitKind == "BPT_IN_FOR_EXACT_TOKENS_OUT":
+			maxBptAmount = self.balConvertTokensToWei([poolAddress], [float(exitDescription["maxBptAmount"])])[0]
+			if query:
+				maxBptAmount = self.balConvertTokensToWei([poolAddress], [self.INFINITE])[0]
+			exitPoolRequestTuple = self.balFormatExitPoolRequestTupleBptInForExactTokensOut(
+				exitKindValue, tokenAddresses, maxBptAmount, amountsOut, minAmountsOut, toInternalBalance)
+
+		if query:
+			tokensSorted = exitPoolRequestTuple[0]
+			queryOutput = self.balDoQueryExitPool(
+			    poolId, userAddress, exitPoolRequestTuple)
+			return self.balFormatQueryExitPoolOutput(queryOutput, tokensSorted, poolAddress)
+		return self.balDoExitPool(poolId, userAddress, exitPoolRequestTuple, gasFactor=gasFactor, gasPriceSpeed=gasPriceSpeed, nonceOverride=nonceOverride, gasEstimateOverride=gasEstimateOverride, gasPriceGweiOverride=gasPriceGweiOverride)
+
 	def balVaultWeth(self):
 		vault = self.balLoadContract("Vault");
 		wethAddress = vault.functions.WETH().call();
 		return(wethAddress);
+
+	def balVaultGetAuthorizer(self):
+		vault = self.balLoadContract("Vault")
+		authorizerAddress = vault.functions.getAuthorizer().call()
+		return authorizerAddress
 
 	def balBalancerHelpersGetVault(self):
 		bh = self.balLoadContract("BalancerHelpers");
@@ -1542,6 +1652,48 @@ class balpy(object):
 			decimals = self.erc20GetDecimals(token);
 			internalBalances[token] = Decimal(balances[i]) * Decimal(10**(-decimals));
 		return(internalBalances);
+
+	def balVaultGetPool(self, poolId):
+		vault = self.balLoadContract("Vault")
+		address, specialization = vault.functions.getPool(poolId).call()
+		return address, specialization
+
+	def balVaultGetPoolTokenInfo(self, poolId, tokenAddress):
+		vault = self.balLoadContract("Vault")
+		tokenAddress = self.web3.toChecksumAddress(tokenAddress)
+		tokenInfo = vault.functions.getPoolTokenInfo(poolId, tokenAddress).call()
+		cash, managed, lastChangeBlock, assetManager = tokenInfo
+		return cash, managed, lastChangeBlock, assetManager
+
+	def balVaultGetProtocolFeesCollector(self):
+		vault = self.balLoadContract("Vault")
+		address = vault.functions.getProtocolFeesCollector().call()
+		return address
+
+	def balVaultHasApprovedRelayer(self, userAddress, relayerAddress):
+		vault = self.balLoadContract("Vault")
+		hasApprovedRelayer = vault.functions.hasApprovedRelayer(
+		    userAddress, relayerAddress).call()
+		return hasApprovedRelayer
+
+	def balVaultSetAuthorizer(self, newAuthorizerAddress, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		vault = self.balLoadContract("Vault")
+		setAuthorizerFn = vault.functions.newAuthorizer(newAuthorizerAddress)
+		tx = self.buildTx(setAuthorizerFn, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
+		return self.sendTx(tx, isAsync)
+
+	def balVaultSetPaused(self, paused, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		vault = self.balLoadContract("Vault")
+		setPausedFn = vault.functions.setPaused(paused)
+		tx = self.buildTx(setPausedFn, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
+		return self.sendTx(tx, isAsync)
+
+	def balVaultSetRelayerApproval(self, senderAddress, relayerAddress, approved, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		vault = self.balLoadContract("Vault")
+		setRelayerApprovalFn = vault.functions.setRelayerApproval(
+		    senderAddress, relayerAddress, approved)
+		tx = self.buildTx(setRelayerApprovalFn, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
+		return self.sendTx(tx, isAsync)
 
 	def balVaultDoManageUserBalance(self, kind, token, amount, sender, recipient, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
 		if self.verbose:

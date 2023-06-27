@@ -1,20 +1,16 @@
 {
-    "network": "kovan",
-    "poolId": "0xd921811bdeb2fd219e08bcc30b7918ae62cfee600001000000000000000000d0",
+    "network": "goerli",
+    "poolId": "0x9f1f16b025f703ee985b58ced48daf93dad2f7ef000200000000000000000063",
     "fromInternalBalance": false,
     "joinKind": "EXACT_TOKENS_IN_FOR_BPT_OUT",
     "slippageTolerancePercent": "1.0",
     "tokens": {
-        "0xAf9ac3235be96eD496db7969f60D354fe5e426B0": {
+        "0xdfcea9088c8a88a76ff74892c1457c17dfeef9c1": {
             "amount": "10.5",
             "allowance": "-1"
         },
-        "0x22ee6c3B011fACC530dd01fe94C58919344d6Db5": {
+        "0xe0c9275e44ea80ef17579d33c55136b7da269aeb": {
             "amount": "5500",
-            "allowance": "-1"
-        },
-        "0xdFCeA9088c8A88A76FF74892C1457C17dfeef9C1": {
-            "amount": "2.254",
             "allowance": "-1"
         }
     }
