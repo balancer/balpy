@@ -266,7 +266,11 @@ class balpy(object):
 		2:"TRANSFER_INTERNAL",
 		3:"TRANSFER_EXTERNAL"
 	};
-	def __init__(self, network=None, verbose=True, customConfigFile=None, manualEnv={}):
+
+	omitCalldataFlag = False;
+	calldataFlag = "py".encode('utf-8').hex();
+
+	def __init__(self, network=None, verbose=True, customConfigFile=None, manualEnv={}, omitCalldataFlag=False):
 		super(balpy, self).__init__();
 
 		self.verbose = verbose;
@@ -337,6 +341,8 @@ class balpy(object):
 
 		# add support for PoA chains
 		self.web3.middleware_onion.inject(geth_poa_middleware, layer=0)
+
+		self.omitCalldataFlag = omitCalldataFlag;
 
 		if self.verbose:
 			print("Initialized account", self.web3.eth.default_account);
@@ -485,6 +491,8 @@ class balpy(object):
 		return(data);
 
 	def sendTx(self, tx, isAsync=False):
+		if not self.omitCalldataFlag:
+			tx["data"] += self.calldataFlag;
 		signedTx = self.web3.eth.account.sign_transaction(tx, self.privateKey);
 		txHash = self.web3.eth.send_raw_transaction(signedTx.rawTransaction).hex();
 
