@@ -1,0 +1,3 @@
+[submodule "balpy/balancer-deployments"]
+	path = balpy/balancer-deployments
+	url = https://github.com/balancer/balancer-deployments.git
