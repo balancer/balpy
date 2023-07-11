@@ -94,16 +94,19 @@ class balpy(object):
 
 	# Network parameters
 	networkParams = {
-						"mainnet":	{"id":1,		"blockExplorerUrl":"etherscan.io",					"balFrontend":"app.balancer.fi/#/"		},
-						"ropsten":	{"id":3,		"blockExplorerUrl":"ropsten.etherscan.io"													},
-						"rinkeby":	{"id":4,		"blockExplorerUrl":"rinkeby.etherscan.io"													},
-						"goerli":	{"id":5,		"blockExplorerUrl":"goerli.etherscan.io"													},
-						"optimism":	{"id":10,		"blockExplorerUrl":"optimistic.etherscan.io"													},
-						"kovan":	{"id":42,		"blockExplorerUrl":"kovan.etherscan.io",			"balFrontend":"kovan.balancer.fi/#/"	},
-						"polygon":	{"id":137,		"blockExplorerUrl":"polygonscan.com",				"balFrontend":"polygon.balancer.fi/#/"	},
-						"fantom":	{"id":250,		"blockExplorerUrl":"ftmscan.com",					"balFrontend":"app.beets.fi/#/"			},
-						"arbitrum":	{"id":42161,	"blockExplorerUrl":"arbiscan.io",					"balFrontend":"arbitrum.balancer.fi/#/"	}
-					};
+					"mainnet":			{"id":1,		"blockExplorerUrl":"etherscan.io",					"balFrontend":"app.balancer.fi/#/ethereum"		},
+					"ropsten":			{"id":3,		"blockExplorerUrl":"ropsten.etherscan.io"															},
+					"rinkeby":			{"id":4,		"blockExplorerUrl":"rinkeby.etherscan.io"															},
+					"goerli":			{"id":5,		"blockExplorerUrl":"goerli.etherscan.io"															},
+					"optimism":			{"id":10,		"blockExplorerUrl":"optimistic.etherscan.io",		"balFrontend":"op.beets.fi/#/"					},
+					"kovan":			{"id":42,		"blockExplorerUrl":"kovan.etherscan.io",															},
+					"gnosis":			{"id":100,		"blockExplorerUrl":"gnosisscan.io",					"balFrontend":"app.balancer.fi/#/gnosis-chain"	},
+					"polygon":			{"id":137,		"blockExplorerUrl":"polygonscan.com",				"balFrontend":"app.balancer.fi/#/polygon"		},
+					"fantom":			{"id":250,		"blockExplorerUrl":"ftmscan.com",					"balFrontend":"beets.fi/#/"						},
+					"zkevm":			{"id":1101,		"blockExplorerUrl":"zkevm.polygonscan.com",			"balFrontend":"app.balancer.fi/#/zkevm"			},
+					"arbitrum":			{"id":42161,	"blockExplorerUrl":"arbiscan.io",					"balFrontend":"app.balancer.fi/#/arbitrum"		},
+					"sepolia":			{"id":11155111,	"blockExplorerUrl":"sepolia.etherscan.io",			"balFrontend":"app.balancer.fi/#/sepolia"		}
+				};
 
 	# ABIs and Deployment Addresses
 	abis = {};
@@ -206,7 +209,10 @@ class balpy(object):
 
 		endpoint = self.customRPC;
 		if endpoint is None:
-			endpoint = 'https://' + self.network + '.infura.io/v3/' + self.infuraApiKey;
+			if network in ["polygon", "optimism", "arbitrum"]:
+				endpoint = 'https://' + self.network + '-mainnet.infura.io/v3/' + self.infuraApiKey;
+			else:
+				endpoint = 'https://' + self.network + '.infura.io/v3/' + self.infuraApiKey;
 
 		self.endpoint = endpoint;
 		self.web3 = Web3(Web3.HTTPProvider(endpoint));
