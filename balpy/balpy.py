@@ -8,6 +8,7 @@ import requests
 import time
 import sys
 import pkgutil
+import importlib
 from decimal import *
 from functools import cache
 import traceback
@@ -93,164 +94,48 @@ class balpy(object):
 
 	# Network parameters
 	networkParams = {
-						"mainnet":	{"id":1,		"blockExplorerUrl":"etherscan.io",					"balFrontend":"app.balancer.fi/#/"		},
-						"ropsten":	{"id":3,		"blockExplorerUrl":"ropsten.etherscan.io"													},
-						"rinkeby":	{"id":4,		"blockExplorerUrl":"rinkeby.etherscan.io"													},
-						"goerli":	{"id":5,		"blockExplorerUrl":"goerli.etherscan.io"													},
-						"optimism":	{"id":10,		"blockExplorerUrl":"optimistic.etherscan.io"													},
-						"kovan":	{"id":42,		"blockExplorerUrl":"kovan.etherscan.io",			"balFrontend":"kovan.balancer.fi/#/"	},
-						"polygon":	{"id":137,		"blockExplorerUrl":"polygonscan.com",				"balFrontend":"polygon.balancer.fi/#/"	},
-						"fantom":	{"id":250,		"blockExplorerUrl":"ftmscan.com",					"balFrontend":"app.beets.fi/#/"			},
-						"arbitrum":	{"id":42161,	"blockExplorerUrl":"arbiscan.io",					"balFrontend":"arbitrum.balancer.fi/#/"	}
-					};
+					"mainnet":			{"id":1,		"blockExplorerUrl":"etherscan.io",					"balFrontend":"app.balancer.fi/#/ethereum"		},
+					"ropsten":			{"id":3,		"blockExplorerUrl":"ropsten.etherscan.io"															},
+					"rinkeby":			{"id":4,		"blockExplorerUrl":"rinkeby.etherscan.io"															},
+					"goerli":			{"id":5,		"blockExplorerUrl":"goerli.etherscan.io"															},
+					"optimism":			{"id":10,		"blockExplorerUrl":"optimistic.etherscan.io",		"balFrontend":"op.beets.fi/#/"					},
+					"kovan":			{"id":42,		"blockExplorerUrl":"kovan.etherscan.io",															},
+					"gnosis":			{"id":100,		"blockExplorerUrl":"gnosisscan.io",					"balFrontend":"app.balancer.fi/#/gnosis-chain"	},
+					"polygon":			{"id":137,		"blockExplorerUrl":"polygonscan.com",				"balFrontend":"app.balancer.fi/#/polygon"		},
+					"fantom":			{"id":250,		"blockExplorerUrl":"ftmscan.com",					"balFrontend":"beets.fi/#/"						},
+					"zkevm":			{"id":1101,		"blockExplorerUrl":"zkevm.polygonscan.com",			"balFrontend":"app.balancer.fi/#/zkevm"			},
+					"arbitrum":			{"id":42161,	"blockExplorerUrl":"arbiscan.io",					"balFrontend":"app.balancer.fi/#/arbitrum"		},
+					"sepolia":			{"id":11155111,	"blockExplorerUrl":"sepolia.etherscan.io",			"balFrontend":"app.balancer.fi/#/sepolia"		}
+				};
 
 	# ABIs and Deployment Addresses
 	abis = {};
 	deploymentAddresses = {};
-	contractDirectories = {
-							# ===== Vault Infra =====
-							"Vault": {
-								"directory":"20210418-vault"
-							},
-							"BalancerHelpers": {
-								"directory":"20210418-vault"
-							},
-							"Authorizer": {
-								"directory":"20210418-authorizer"
-							},
 
-							# ====== Pools and Associated Contracts ======
-							"WeightedPoolFactory": {
-								"directory":"20230206-weighted-pool-v3"
-							},
-							"WeightedPool2TokensFactory": {
-								"directory":"20210418-weighted-pool"
-							},
-							"StablePoolFactory": {
-								"directory":"20220609-stable-pool-v2"
-							},
-							"LiquidityBootstrappingPoolFactory": {
-								"directory":"20210721-liquidity-bootstrapping-pool"
-							},
-							"MetaStablePoolFactory": {
-								"directory":"20210727-meta-stable-pool"
-							},
-							"WstETHRateProvider": {
-								"directory":"20210812-wsteth-rate-provider"
-							},
-							"InvestmentPoolFactory": {
-								"directory":"20210907-investment-pool"
-							},
-							"StablePhantomPoolFactory": {
-								"directory":"20211208-stable-phantom-pool"
-							},
-							"ComposableStablePoolFactory": {
-								"directory":"20230206-composable-stable-pool-v3"
-							},
-							"AaveLinearPoolFactory": {
-								"directory":"20220817-aave-rebalanced-linear-pool"
-							},
-							"ERC4626LinearPoolFactory": {
-								"directory":"20230206-erc4626-linear-pool-v3"
-							},
-							"NoProtocolFeeLiquidityBootstrappingPoolFactory": {
-								"directory":"20211202-no-protocol-fee-lbp"
-							},
-							"ManagedPoolFactory": {
-								"directory":"20221021-managed-pool"
-							},
+	# Get all deployment directories from the balancer-deployments repo
+	deploymentsDir = "balancer-deployments/tasks"
+	spec = importlib.util.find_spec(__name__)
+	headTail = os.path.split(spec.origin);
+	packagePath = headTail[0];
+	taskDir = os.path.join(packagePath, deploymentsDir);
+	taskSubDirs = os.listdir(taskDir);
+	taskSubDirs.sort();
 
-							# ===== Relayers and Infra =====
-							# TODO: update dir to 20220318-batch-relayer-v2 once deployed on all networks
-							"BalancerRelayer": {
-								"directory":"20211203-batch-relayer"
-							},
-							"BatchRelayerLibrary": {
-								"directory":"20211203-batch-relayer"
-							},
-							"LidoRelayer": {
-								"directory":"20210812-lido-relayer"
-							},
+	contractDirectories = {};
+	for t in taskSubDirs:
+		# skip deprecated and scripts folders
+		if len(t.split("-")) == 1:
+			continue;
 
-							# ===== Liquidity Mining Infra =====
-							"MerkleRedeem": {
-								"directory":"20210811-ldo-merkle"
-							},
-							"MerkleOrchard": {
-								"directory":"20211012-merkle-orchard"
-							},
+		# skip 00000000-tokens
+		if t.startswith("00000000"):
+			continue;
 
-							# ===== Gauges and Infra =====
-							"AuthorizerAdaptor": {
-								"directory":"20220325-authorizer-adaptor"
-							},
-							"BALTokenHolderFactory": {
-								"directory":"20220325-bal-token-holder-factory"
-							},
-							"BalancerTokenAdmin": {
-								"directory":"20220325-balancer-token-admin"
-							},
-							"GaugeAdder": {
-								"directory":"20220325-gauge-adder"
-							},
-							"VotingEscrow": {
-								"directory":"20220325-gauge-controller"
-							},
-							"GaugeController": {
-								"directory":"20220325-gauge-controller"
-							},
-							"BalancerMinter": {
-								"directory":"20220325-gauge-controller"
-							},
-							"LiquidityGaugeFactory": {
-								"directory":"20220325-mainnet-gauge-factory"
-							},
-							"SingleRecipientGaugeFactory": {
-								"directory":"20220325-single-recipient-gauge-factory"
-							},
-							"VotingEscrowDelegation": {
-								"directory":"20220325-ve-delegation"
-							},
-							"VotingEscrowDelegationProxy": {
-								"directory":"20220325-ve-delegation"
-							},
-							"veBALDeploymentCoordinator": {
-								"directory":"20220325-veBAL-deployment-coordinator"
-							},
-							"ArbitrumRootGaugeFactory": {
-								"directory":"20220413-arbitrum-root-gauge-factory"
-							},
-							"PolygonRootGaugeFactory": {
-								"directory":"20220413-polygon-root-gauge-factory"
-							},
-							"ChildChainStreamer": {
-								"directory":"20220413-child-chain-gauge-factory"
-							},
-							"ChildChainLiquidityGaugeFactory": {
-								"directory":"20220413-child-chain-gauge-factory"
-							},
-							"veBALL2GaugeSetupCoordinator": {
-								"directory":"20220415-veBAL-L2-gauge-setup-coordinator"
-							},
-							"veBALGaugeFixCoordinator": {
-								"directory":"20220418-veBAL-gauge-fix-coordinator"
-							},
-							"FeeDistributor": {
-								"directory":"20220420-fee-distributor"
-							},
-							"SmartWalletChecker": {
-								"directory":"20220420-smart-wallet-checker"
-							},
-							"SmartWalletCheckerCoordinator": {
-								"directory":"20220421-smart-wallet-checker-coordinator"
-							},
-							"DistributionScheduler": {
-								"directory":"20220422-distribution-scheduler"
-							},
-							"ProtocolFeePercentagesProvider": {
-								"directory":"20220725-protocol-fee-percentages-provider"
-							}
-						};
+		currPath = os.path.join(taskDir, t, "artifact");
+		artifactNames = os.listdir(currPath);
+		for a in artifactNames:
+			contractName = a.split(".")[0];
+			contractDirectories[contractName] = t;
 
 	decimals = {};
 
@@ -324,7 +209,10 @@ class balpy(object):
 
 		endpoint = self.customRPC;
 		if endpoint is None:
-			endpoint = 'https://' + self.network + '.infura.io/v3/' + self.infuraApiKey;
+			if network in ["polygon", "optimism", "arbitrum"]:
+				endpoint = 'https://' + self.network + '-mainnet.infura.io/v3/' + self.infuraApiKey;
+			else:
+				endpoint = 'https://' + self.network + '.infura.io/v3/' + self.infuraApiKey;
 
 		self.endpoint = endpoint;
 		self.web3 = Web3(Web3.HTTPProvider(endpoint));
@@ -394,13 +282,13 @@ class balpy(object):
 		self.deploymentAddresses = {};
 		missingContracts = [];
 		for contractType in self.contractDirectories.keys():
-			subdir = self.contractDirectories[contractType]["directory"];
+			subdir = self.contractDirectories[contractType];
 
-			# get contract abi from deployment
-			abiPath = os.path.join('deployments', subdir , "abi", contractType + '.json');
+			# get contract abi from deployments repo artifacts
+			abiPath = os.path.join(self.deploymentsDir, subdir , "artifact", contractType + '.json');
 			try:
 				f = pkgutil.get_data(__name__, abiPath).decode();
-				currAbi = json.loads(f);
+				currAbi = json.loads(f)["abi"];
 				self.abis[contractType] = currAbi;
 			except BaseException as error:
 				self.ERROR('Error accessing file: {}'.format(abiPath))
@@ -411,7 +299,7 @@ class balpy(object):
 				if usingCustomConfig:
 					currAddress = self.web3.toChecksumAddress(customConfig["contracts"][contractType]);
 				else:
-					deploymentPath = os.path.join('deployments', subdir, "output", self.network + '.json');
+					deploymentPath = os.path.join(self.deploymentsDir, subdir, "output", self.network + '.json');
 					f = pkgutil.get_data(__name__, deploymentPath).decode();
 					currData = json.loads(f);
 					currAddress = self.web3.toChecksumAddress(currData[contractType]);
@@ -1747,10 +1635,10 @@ class balpy(object):
 		if not "Pool" in poolType:
 			poolType = poolType + "Pool"
 
-		deploymentFolder = self.contractDirectories[poolType + "Factory"]["directory"];
-		abiPath = os.path.join("deployments/", deploymentFolder, "abi", poolType + ".json");
+		deploymentFolder = self.contractDirectories[poolType + "Factory"];
+		abiPath = os.path.join(self.deploymentsDir, deploymentFolder, "artifact", poolType + ".json");
 		f = pkgutil.get_data(__name__, abiPath).decode();
-		poolAbi = json.loads(f);
+		poolAbi = json.loads(f)["abi"];
 		return(poolAbi);
 
 	@cache
@@ -1968,7 +1856,7 @@ class balpy(object):
 		encodedData = data[2:]; #cut off the 0x
 
 		command = "yarn hardhat verify-contract --id {} --name {} --address {} --network {} --key {} --args {}"
-		output = command.format(self.contractDirectories[poolFactoryType]["directory"],
+		output = command.format(self.contractDirectories[poolFactoryType],
 								poolType,
 								address,
 								self.network,
