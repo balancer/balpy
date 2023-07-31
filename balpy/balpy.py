@@ -814,8 +814,6 @@ class balpy(object):
 
 		owner = self.balSetOwner(poolData);
 
-		salt = self.generateSalt();
-
 		createFunction = factory.functions.create(	poolData["name"], 
 													poolData["symbol"], 
 													checksumTokens, 
@@ -823,58 +821,8 @@ class balpy(object):
 													rateProviders,
 													swapFeePercentage, 
 													owner,
-													salt);
+													self.generateSalt());
 		return(createFunction);
-
-	def balCreateFnWeightedPool2TokensFactory(self, poolData):
-		factory = self.balLoadContract("WeightedPool2TokensFactory");
-		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
-		
-		if not len(tokens) == 2:
-			self.ERROR("WeightedPool2TokensFactory requires 2 tokens, but", len(tokens), "were given.");
-			return(False);
-
-		if not self.balWeightsEqualOne(poolData):
-			return(False);
-
-		intWithDecimalsWeights = [int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18)) for t in tokens];
-		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
-
-		owner = self.balSetOwner(poolData);
-
-		oracleEnabled = False;
-		if "oracleEnabled" in poolData.keys():
-			oracleEnabled = poolData["oracleEnabled"];
-			if isinstance(oracleEnabled, str):
-				if oracleEnabled.lower() == "true":
-					oracleEnabled = True;
-				else:
-					oracleEnabled = False;
-
-		createFunction = factory.functions.create(	poolData["name"],
-													poolData["symbol"],
-													checksumTokens,
-													intWithDecimalsWeights,
-													swapFeePercentage,
-													oracleEnabled,
-													owner);
-		return(createFunction);
-
-	def balCreateFnStablePoolFactory(self, poolData):
-		factory = self.balLoadContract("StablePoolFactory");
-		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
-		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
-
-		owner = self.balSetOwner(poolData);
-
-		createFunction = factory.functions.create(	poolData["name"],
-													poolData["symbol"],
-													checksumTokens,
-													int(poolData["amplificationParameter"]),
-													swapFeePercentage,
-													owner);
-		return(createFunction);
-
 
 	def balCreateFnLBPoolFactory(self, poolData):
 		return(self.balCreateFnLBPFactory(poolData, "LiquidityBootstrappingPoolFactory"));
@@ -912,57 +860,6 @@ class balpy(object):
 													swapFeePercentage,
 													owner,
 													poolData["swapEnabledOnStart"]);
-		return(createFunction);
-
-	def balCreateFnMetaStablePoolFactory(self, poolData):
-		factory = self.balLoadContract("MetaStablePoolFactory");
-		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
-		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
-		owner = self.balSetOwner(poolData);
-
-		rateProviders = [self.web3.toChecksumAddress(poolData["tokens"][token]["rateProvider"]) for token in tokens]
-		priceRateCacheDurations = [int(poolData["tokens"][token]["priceRateCacheDuration"]) for token in tokens]
-
-		createFunction = factory.functions.create(	poolData["name"],
-													poolData["symbol"],
-													checksumTokens,
-													int(poolData["amplificationParameter"]),
-													rateProviders,
-													priceRateCacheDurations,
-													swapFeePercentage,
-													poolData["oracleEnabled"],
-													owner);
-		return(createFunction);
-
-	def balCreateFnInvestmentPoolFactory(self, poolData):
-		factory = self.balLoadContract("InvestmentPoolFactory");
-		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
-		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
-		intWithDecimalsWeights = [int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18)) for t in tokens];
-		managementFeePercentage = int(Decimal(poolData["managementFeePercent"]) * Decimal(1e16));
-		# Deployed factory doesn't allow asset managers
-		# assetManagers = [0 for i in range(0,len(tokens))]
-		owner = self.balSetOwner(poolData);
-		if not owner == self.address:
-			self.WARN("!!! You are not the owner for your Investment Pool !!!")
-			self.WARN("You:\t\t" + self.address)
-			self.WARN("Pool Owner:\t" + owner)
-
-			print();
-			self.WARN("Only the pool owner can call permissioned functions, such as changing weights or the management fee.")
-			self.WARN(owner + " should either be you, or a multi-sig or other contract that you control and can call permissioned functions from.")
-			cancelTimeSec = 30;
-			self.WARN("If the owner mismatch is was unintentional, you have " + str(cancelTimeSec) + " seconds to cancel with Ctrl+C.")
-			time.sleep(cancelTimeSec);
-
-		createFunction = factory.functions.create(	poolData["name"],
-													poolData["symbol"],
-													checksumTokens,
-													intWithDecimalsWeights,
-													swapFeePercentage,
-													owner,
-													poolData["swapEnabledOnStart"],
-													managementFeePercentage);
 		return(createFunction);
 
 	def balCreateFnManagedPoolFactory(self, poolData):
@@ -1009,25 +906,6 @@ class balpy(object):
 		);
 		return(createFunction);
 
-	def balCreateFnStablePhantomPoolFactory(self, poolData):
-		factory = self.balLoadContract("StablePhantomPoolFactory");
-		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
-		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
-		owner = self.balSetOwner(poolData);
-
-		rateProviders = [self.web3.toChecksumAddress(poolData["tokens"][token]["rateProvider"]) for token in tokens]
-		tokenRateCacheDurations = [int(poolData["tokens"][token]["tokenRateCacheDuration"]) for token in tokens]
-
-		createFunction = factory.functions.create(	poolData["name"],
-													poolData["symbol"],
-													checksumTokens,
-													int(poolData["amplificationParameter"]),
-													rateProviders,
-													tokenRateCacheDurations,
-													swapFeePercentage,
-													owner);
-		return(createFunction);
-
 	def balCreateFnComposableStablePoolFactory(self, poolData):
 		factory = self.balLoadContract("ComposableStablePoolFactory");
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
@@ -1036,7 +914,7 @@ class balpy(object):
 
 		rateProviders = [self.web3.toChecksumAddress(poolData["tokens"][token]["rateProvider"]) for token in tokens]
 		tokenRateCacheDurations = [int(poolData["tokens"][token]["tokenRateCacheDuration"]) for token in tokens]
-		exemptFromYieldProtocolFeeFlags = [bool(poolData["tokens"][token]["exemptFromYieldProtocolFeeFlags"]) for token in tokens]
+		exemptFromYieldProtocolFeeFlag = poolData["exemptFromYieldProtocolFeeFlag"];
 
 		createFunction = factory.functions.create(	poolData["name"],
 													poolData["symbol"],
@@ -1044,9 +922,10 @@ class balpy(object):
 													int(poolData["amplificationParameter"]),
 													rateProviders,
 													tokenRateCacheDurations,
-													exemptFromYieldProtocolFeeFlags,
+													exemptFromYieldProtocolFeeFlag,
 													swapFeePercentage,
-													owner);
+													owner,
+													self.generateSalt());
 		return(createFunction);
 
 	def balCreateFnLinearPoolFactory(self, poolData, factoryName):
@@ -1093,20 +972,10 @@ class balpy(object):
 		# 		add it to the printout of supported factories below
 		if poolFactoryName == "WeightedPoolFactory":
 			createFunction = self.balCreateFnWeightedPoolFactory(poolDescription);
-		if poolFactoryName == "WeightedPool2TokensFactory":
-			createFunction = self.balCreateFnWeightedPool2TokensFactory(poolDescription);
-		if poolFactoryName == "StablePoolFactory":
-			createFunction = self.balCreateFnStablePoolFactory(poolDescription);
 		if poolFactoryName == "LiquidityBootstrappingPoolFactory":
 			createFunction = self.balCreateFnLBPoolFactory(poolDescription);
-		if poolFactoryName == "MetaStablePoolFactory":
-			createFunction = self.balCreateFnMetaStablePoolFactory(poolDescription);
-		if poolFactoryName == "InvestmentPoolFactory":
-			createFunction = self.balCreateFnInvestmentPoolFactory(poolDescription);
 		if poolFactoryName == "ManagedPoolFactory":
 			createFunction = self.balCreateFnManagedPoolFactory(poolDescription);
-		if poolFactoryName == "StablePhantomPoolFactory":
-			createFunction = self.balCreateFnStablePhantomPoolFactory(poolDescription);
 		if poolFactoryName == "ComposableStablePoolFactory":
 			createFunction = self.balCreateFnComposableStablePoolFactory(poolDescription);
 		if poolFactoryName == "AaveLinearPoolFactory":
@@ -1117,7 +986,7 @@ class balpy(object):
 			createFunction = self.balCreateFnNoProtocolFeeLiquidityBootstrappingPoolFactory(poolDescription);
 		if createFunction is None:
 			print("No pool factory found with name:", poolFactoryName);
-			print("Currently supported pool types are:");
+			print("Supported pool types are:");
 			print("\tWeightedPool");
 			print("\tWeightedPool2Token");
 			print("\tStablePool");
