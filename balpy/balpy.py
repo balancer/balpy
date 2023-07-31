@@ -12,6 +12,8 @@ import importlib
 from decimal import *
 from functools import cache
 import traceback
+import random
+import binascii
 
 # low level web3
 from web3 import Web3, middleware
@@ -791,6 +793,14 @@ class balpy(object):
 			owner = self.web3.toChecksumAddress(ownerAddress);
 		return(owner);
 
+	def generateSalt(self, salt_input=None):
+		if salt_input is None:
+			salt_input = random.randint(0, 2**256 - 1);
+		salt = eth_abi.encode_abi(['uint256'],[int(salt_input)]);
+		salt_hex = binascii.hexlify(salt);
+		salt_str = "0x" + salt_hex.decode("ascii");
+		return(salt_str);
+
 	def balCreateFnWeightedPoolFactory(self, poolData):
 		factory = self.balLoadContract("WeightedPoolFactory");
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
@@ -804,13 +814,16 @@ class balpy(object):
 
 		owner = self.balSetOwner(poolData);
 
+		salt = self.generateSalt();
+
 		createFunction = factory.functions.create(	poolData["name"], 
 													poolData["symbol"], 
 													checksumTokens, 
 													intWithDecimalsWeights,
 													rateProviders,
 													swapFeePercentage, 
-													owner);
+													owner,
+													salt);
 		return(createFunction);
 
 	def balCreateFnWeightedPool2TokensFactory(self, poolData):
