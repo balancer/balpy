@@ -12,8 +12,8 @@
     "gasPriceOverride":"", // setting this to any number will override the gasSpeed
 
     // Pool Name & Token Symbol
-    "name": "Python Test Weighted Pool V3",
-    "symbol": "PTWPv3",
+    "name": "Python Test Weighted Pool",
+    "symbol": "PTWP",
 
     // Pool Configuration
     "poolType": "WeightedPool",
