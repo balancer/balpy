@@ -1,35 +1,45 @@
 {
+    /*
+    It is highly recommended that you make a copy of this file before running the script!
+    Once you run the script with a given file, these comments will disappear since to the
+    file will be saved with the poolId encoded in it. The pool generation script can handle
+    reading json files with comments in them, but it cannot recreate them.
+    */
+
+    // Network and Gas Settings
     "network": "goerli",
-    "gasSpeed": "average",
-    "gasPriceOverride": "",
+    "gasSpeed":"average", // this can be {slow, average, fast}
+    "gasPriceOverride":"", // setting this to any number will override the gasSpeed
+
+    // Pool Name & Token Symbol
     "name": "Python Test Composable Stable Pool",
     "symbol": "PTCSP",
+
+    // Pool Configuration
     "poolType": "ComposableStablePool",
     "swapFeePercent": "1.0",
     "fromInternalBalance": false,
     "amplificationParameter": "100",
     "owner": "0x0000000000000000000000000000000000000000",
+    "exemptFromYieldProtocolFeeFlag": false,
     "tokens": {
         "0x1f1f156e0317167c11aa412e3d1435ea29dc3cce": {
-            "initialBalance": "100",
+            "initialBalance": "1",
             "allowance": -1,
             "rateProvider": "0x0000000000000000000000000000000000000000",
             "tokenRateCacheDuration": "21600",
-            "exemptFromYieldProtocolFeeFlags": false
         },
         "0xe0c9275e44ea80ef17579d33c55136b7da269aeb": {
-            "initialBalance": "100",
+            "initialBalance": "1",
             "allowance": -1,
             "rateProvider": "0x0000000000000000000000000000000000000000",
             "tokenRateCacheDuration": "21600",
-            "exemptFromYieldProtocolFeeFlags": false
         },
         "0x8c9e6c40d3402480ace624730524facc5482798c": {
-            "initialBalance": "100",
+            "initialBalance": "1",
             "allowance": -1,
             "rateProvider": "0x0000000000000000000000000000000000000000",
             "tokenRateCacheDuration": "21600",
-            "exemptFromYieldProtocolFeeFlags": false
         }
     }
 }
