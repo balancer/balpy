@@ -954,7 +954,8 @@ class balpy(object):
 													upperTarget,
 													swapFeePercentage,
 													owner,
-													int(poolData["protocolId"]));
+													int(poolData["protocolId"]),
+													self.generateSalt());
 		return(createFunction);
 
 	def balCreateFnAaveLinearPoolFactory(self, poolData):
