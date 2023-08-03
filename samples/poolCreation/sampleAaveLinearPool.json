@@ -7,7 +7,7 @@
     */
 
     // Network and Gas Settings
-    "network": "goerli",
+    "network": "sepolia",
     "gasSpeed": "average", // this can be {slow, average, fast}
     "gasPriceOverride": "", // setting this to any number will override the gasSpeed
 
@@ -21,13 +21,14 @@
     "fromInternalBalance": false,
     "owner": "0x0000000000000000000000000000000000000000",
     "upperTarget": "2100000000000000000000000",
+    "protocolId": "0", // Set Protocol ID according to the ID in ProtocolIdRegistry (e.g.: https://etherscan.io/address/0xc3ccacE87f6d3A81724075ADcb5ddd85a8A1bB68)
     "tokens": {
-        "0x1f1f156E0317167c11Aa412E3d1435ea29Dc3cCE": {
+        "0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9": {
             "isWrappedToken": false,
-            "initialBalance": "100",
+            "initialBalance": "0.001",
             "allowance": -1
         },
-        "0x4Cb1892FdDF14f772b2E39E299f44B2E5DA90d04": {
+        "0x03f3fb107e74f2eac9358862e91ad3c692712054": {
             "isWrappedToken": true,
             "initialBalance": "0",
             "allowance": -1
