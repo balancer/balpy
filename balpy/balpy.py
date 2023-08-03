@@ -427,7 +427,7 @@ class balpy(object):
 				print(e);
 				print("Transaction not found yet, will check again in", delay, "seconds");
 				time.sleep(delay);
-		self.ERROR("Transaction not found in" + str(maxRetries) + "retries.");
+		self.ERROR("Transaction not found in " + str(maxRetries) + " retries.");
 		return(False);
 
 	# =====================
