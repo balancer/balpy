@@ -893,16 +893,19 @@ class balpy(object):
 			(
 				poolData["name"],
 				poolData["symbol"],
+				assetManagers
+			),
+			(
 				checksumTokens,
 				intWithDecimalsWeights,
-				assetManagers,
 				swapFeePercentage,
 				poolData["swapEnabledOnStart"],
 				poolData["mustAllowlistLPs"],
 				managementAumFeePercentage,
 				int(poolData["aumFeeId"])
 			),
-			owner
+			owner,
+			self.generateSalt()
 		);
 		return(createFunction);
 
