@@ -7,9 +7,9 @@
     */
 
     // Network and Gas Settings
-    "network": "goerli",
+    "network": "sepolia",
     "gasSpeed":"average", // this can be {slow, average, fast}
-    "gasPriceOverride":"120", // setting this to any number will override the gasSpeed
+    "gasPriceOverride":"", // setting this to any number will override the gasSpeed
 
     // Pool Name & Token Symbol
     "name": "Python Test Managed",
@@ -18,24 +18,24 @@
     // Pool Configuration
     "poolType": "ManagedPool",
     "swapFeePercent": "0.1",
-    "managementAumFeePercentage": "50",
+    "managementAumFeePercentage": "1",
     "aumFeeId": "1",
     "fromInternalBalance": false,
     "swapEnabledOnStart": true,
     "mustAllowlistLPs": false,
     "owner": "0x7a73a786d16243680B3253a35392860eAE87d071",
     "tokens": {
-        "0x8c9e6c40d3402480ace624730524facc5482798c": {
+        "0x5bb220afc6e2e008cb2302a83536a019ed245aa2": {
             "weight": "0.9",
             "initialBalance": "0.000001",
             "allowance": -1,
-            "assetManager":"0x7a73a786d16243680B3253a35392860eAE87d071"
+            "assetManager":"0x0000000000000000000000000000000000000000"
         },
-        "0xdfcea9088c8a88a76ff74892c1457c17dfeef9c1": {
+        "0x68194a729c2450ad26072b3d33adacbcef39d574": {
             "weight": "0.1",
             "initialBalance": "0.000001",
             "allowance": -1,
-            "assetManager":"0x7a73a786d16243680B3253a35392860eAE87d071"
+            "assetManager":"0x0000000000000000000000000000000000000000"
         }
     }
 }

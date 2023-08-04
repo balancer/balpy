@@ -7,7 +7,7 @@
     */
 
     // Network and Gas Settings
-    "network": "kovan",
+    "network": "sepolia",
     "gasSpeed":"average", // this can be {slow, average, fast}
     "gasPriceOverride":"", // setting this to any number will override the gasSpeed
 
@@ -20,14 +20,14 @@
     "swapFeePercent": "0.1",
     "fromInternalBalance": false,
     "swapEnabledOnStart": false,
-    "owner": "0x975EefE53305c0c5480aeC00cea22e8b36250C05",
+    "owner": "0x7a73a786d16243680B3253a35392860eAE87d071",
     "tokens": {
-        "0x41286Bb1D3E870f3F750eB7E1C25d7E48c8A1Ac7": {
+        "0xebcc972b6b3eb15c0592be1871838963d0b94278": {
             "weight": "0.9",
             "initialBalance": "0.000001",
             "allowance": -1
         },
-        "0x04DF6e4121c27713ED22341E7c7Df330F56f289B": {
+        "0xe5118e47e061ab15ca972d045b35193f673bcc36": {
             "weight": "0.1",
             "initialBalance": "0.000001",
             "allowance": -1

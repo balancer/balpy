@@ -7,13 +7,13 @@
     */
 
     // Network and Gas Settings
-    "network": "goerli",
+    "network": "sepolia",
     "gasSpeed":"average", // this can be {slow, average, fast}
     "gasPriceOverride":"", // setting this to any number will override the gasSpeed
 
     // Pool Name & Token Symbol
-    "name": "Python Test Weighted Pool V3",
-    "symbol": "PTWPv3",
+    "name": "Python Test Weighted Pool",
+    "symbol": "PTWP",
 
     // Pool Configuration
     "poolType": "WeightedPool",
@@ -21,13 +21,13 @@
     "fromInternalBalance": false,
     "owner": "0x0000000000000000000000000000000000000000",
     "tokens": {
-        "0x8c9e6c40d3402480ace624730524facc5482798c": {
+        "0xebcc972b6b3eb15c0592be1871838963d0b94278": {
             "weight": "0.5",
             "initialBalance": "10",
             "rateProvider": "0x0000000000000000000000000000000000000000",
             "allowance": -1
         },
-        "0xdfcea9088c8a88a76ff74892c1457c17dfeef9c1": {
+        "0xe5118e47e061ab15ca972d045b35193f673bcc36": {
             "weight": "0.5",
             "initialBalance": "0.001",
             "rateProvider": "0x0000000000000000000000000000000000000000",
