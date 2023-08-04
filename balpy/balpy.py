@@ -114,30 +114,41 @@ class balpy(object):
 	abis = {};
 	deploymentAddresses = {};
 
-	# Get all deployment directories from the balancer-deployments repo
-	deploymentsDir = "balancer-deployments/tasks"
-	spec = importlib.util.find_spec(__name__)
-	headTail = os.path.split(spec.origin);
-	packagePath = headTail[0];
-	taskDir = os.path.join(packagePath, deploymentsDir);
-	taskSubDirs = os.listdir(taskDir);
-	taskSubDirs.sort();
-
 	contractDirectories = {};
-	for t in taskSubDirs:
-		# skip deprecated and scripts folders
-		if len(t.split("-")) == 1:
-			continue;
+	deprecatedContractDirectories = {};
+	deprecated = True;
+	deploymentsDir = "balancer-deployments/tasks/deprecated"
 
-		# skip 00000000-tokens
-		if t.startswith("00000000"):
-			continue;
+	for i in range(2):
+		# Get all deployment directories from the balancer-deployments repo
+		if not deprecated:
+			deploymentsDir = "balancer-deployments/tasks"
 
-		currPath = os.path.join(taskDir, t, "artifact");
-		artifactNames = os.listdir(currPath);
-		for a in artifactNames:
-			contractName = a.split(".")[0];
-			contractDirectories[contractName] = t;
+		spec = importlib.util.find_spec(__name__)
+		headTail = os.path.split(spec.origin);
+		packagePath = headTail[0];
+		taskDir = os.path.join(packagePath, deploymentsDir);
+		taskSubDirs = os.listdir(taskDir);
+		taskSubDirs.sort();
+
+		for t in taskSubDirs:
+			# skip deprecated and scripts folders
+			if len(t.split("-")) == 1:
+				continue;
+
+			# skip 00000000-tokens
+			if t.startswith("00000000"):
+				continue;
+
+			currPath = os.path.join(taskDir, t, "artifact");
+			artifactNames = os.listdir(currPath);
+			for a in artifactNames:
+				contractName = a.split(".")[0];
+				if deprecated:
+					deprecatedContractDirectories[contractName] = t;
+				else:
+					contractDirectories[contractName] = t;
+		deprecated = False;
 
 	decimals = {};
 
@@ -976,8 +987,6 @@ class balpy(object):
 		# 		add it to the printout of supported factories below
 		if poolFactoryName == "WeightedPoolFactory":
 			createFunction = self.balCreateFnWeightedPoolFactory(poolDescription);
-		if poolFactoryName == "LiquidityBootstrappingPoolFactory":
-			createFunction = self.balCreateFnLBPoolFactory(poolDescription);
 		if poolFactoryName == "ManagedPoolFactory":
 			createFunction = self.balCreateFnManagedPoolFactory(poolDescription);
 		if poolFactoryName == "ComposableStablePoolFactory":
@@ -992,12 +1001,7 @@ class balpy(object):
 			print("No pool factory found with name:", poolFactoryName);
 			print("Supported pool types are:");
 			print("\tWeightedPool");
-			print("\tWeightedPool2Token");
-			print("\tStablePool");
-			print("\tLiquidityBootstrappingPool");
-			print("\tMetaStablePool");
-			print("\tInvestmentPool");
-			print("\tStablePhantomPool");
+			print("\tManagedPool");
 			print("\tComposableStablePoolFactory");
 			print("\tAaveLinearPool");
 			print("\tERC4626LinearPoolFactory");
@@ -1056,15 +1060,12 @@ class balpy(object):
 	def balGetJoinKindEnum(self, poolId, joinKind):
 		factoryName = self.balFindPoolFactory(poolId);
 
-		usingWeighted = factoryName in ["WeightedPoolFactory", "WeightedPool2TokensFactory", "LiquidityBootstrappingPoolFactory", "InvestmentPoolFactory", "NoProtocolFeeLiquidityBootstrappingPoolFactory", "ManagedPoolFactory"];
-		usingStable = factoryName in ["StablePoolFactory", "MetaStablePoolFactory"];
-		usingStablePhantom = factoryName in ["StablePhantomPoolFactory", "ComposableStablePoolFactory"];
+		usingWeighted = factoryName in ["WeightedPoolFactory", "NoProtocolFeeLiquidityBootstrappingPoolFactory", "ManagedPoolFactory"];
+		usingComposableStable = factoryName in ["ComposableStablePoolFactory"];
 
 		if usingWeighted:
 			joinKindEnum = WeightedPoolJoinKind[joinKind];
-		elif usingStable:
-			joinKindEnum = StablePoolJoinKind[joinKind];
-		elif usingStablePhantom:
+		elif usingComposableStable:
 			joinKindEnum = StablePhantomPoolJoinKind[joinKind];
 		else:
 			self.ERROR("PoolType " + str(factoryName) + " not supported for JoinKind: " + joinKind)
@@ -1518,11 +1519,27 @@ class balpy(object):
 	@cache
 	def balPoolGetAbi(self, poolType):
 
+		if poolType == "HighAmpComposableStable":
+			poolType = "ComposableStable";
+
 		if not "Pool" in poolType:
 			poolType = poolType + "Pool"
 
-		deploymentFolder = self.contractDirectories[poolType + "Factory"];
-		abiPath = os.path.join(self.deploymentsDir, deploymentFolder, "artifact", poolType + ".json");
+		deploymentFolder = None;
+		deprecatedString = ""
+		try:
+			deploymentFolder = self.contractDirectories[poolType + "Factory"];
+		except KeyError:
+			try:
+				deploymentFolder = self.deprecatedContractDirectories[poolType + "Factory"];
+				deprecatedString = "deprecated"
+			except KeyError:
+				return None;
+		except Exception as e:
+			print(e);
+			quit();
+
+		abiPath = os.path.join(self.deploymentsDir, deprecatedString, deploymentFolder, "artifact", poolType + ".json");
 		f = pkgutil.get_data(__name__, abiPath).decode();
 		poolAbi = json.loads(f)["abi"];
 		return(poolAbi);
@@ -1967,6 +1984,7 @@ class balpy(object):
 
 		# make the actual call to MultiCall
 		outputData = self.mc.execute();
+		outputData = outputData[0];
 		tokensToDecimals = {};
 
 		for token, odBytes in zip(tokens, outputData):
@@ -1995,6 +2013,9 @@ class balpy(object):
 		for poolType in pools.keys():
 			poolIds = pools[poolType];
 			poolAbi = poolAbis[poolType];
+
+			if poolAbi is None:
+				continue;
 
 			# construct all the calls in format (VaultAddress, encodedCallData)
 			for poolId in poolIds:
@@ -2027,6 +2048,7 @@ class balpy(object):
 					pidAndFns.append((poolId, "getSwapEnabled"));
 
 		data = self.mc.execute();
+		data = data[0];
 
 		chainDataOut = {};
 		chainDataBookkeeping = {};
