@@ -470,6 +470,11 @@ class balpy(object):
 		decimals = token.functions.decimals().call();
 		return(decimals);
 
+	def erc20ScaleDecimalsStandard(self, tokenAddress, amount):
+		decimals = self.erc20GetDecimals(tokenAddress);
+		standardBalance = Decimal(amount) * Decimal(10**(-decimals));
+		return(standardBalance);
+
 	def erc20GetBalanceStandard(self, tokenAddress, address=None):
 		if address is None:
 			address = self.address;
@@ -1398,6 +1403,83 @@ class balpy(object):
 			return self.balFormatQueryExitPoolOutput(queryOutput, tokensSorted, poolAddress)
 		return self.balDoExitPool(poolId, userAddress, exitPoolRequestTuple, gasFactor=gasFactor, gasPriceSpeed=gasPriceSpeed, nonceOverride=nonceOverride, gasEstimateOverride=gasEstimateOverride, gasPriceGweiOverride=gasPriceGweiOverride)
 
+	def balGetRebalanceLinearPoolsData(self, linearPoolAddresses):
+		# Can realistically be any linear pool, this one just is the most generic.
+		poolAbi = self.balPoolGetAbi("ERC4626LinearPool");
+
+		# get poolIds and mainTokens to feed into getPoolTokenInfo (to get asset managers)
+		for i in linearPoolAddresses:
+			self.mc.addCall(i, poolAbi, 'getPoolId');
+			self.mc.addCall(i, poolAbi, 'getMainToken');
+		output = self.mc.execute();
+
+		pool_id_by_pool_address = {};
+		main_tokens_by_pool_id = {};
+		for i in range(0, len(output[0]), 2):
+			poolIdSuccess = output[1][i];
+			mainTokenSuccess = output[1][i + 1];
+			if poolIdSuccess and mainTokenSuccess:
+				poolId = "0x" + output[0][i][0].hex();
+				mainToken = self.web3.toChecksumAddress(output[0][i + 1][0]);
+				main_tokens_by_pool_id[poolId] = mainToken;
+				pool_id_by_pool_address[linearPoolAddresses[int(i/2)]] = poolId;
+
+		self.multiCallErc20BatchDecimals(list(main_tokens_by_pool_id.values()));
+
+		# determine each linear pool's asset manager (the rebalancer)
+		vault = self.balLoadContract("Vault");
+		assetManagers = [];
+		for poolId in main_tokens_by_pool_id:
+			mainToken = main_tokens_by_pool_id[poolId];
+			self.mc.addCall(vault.address, vault.abi, 'getPoolTokenInfo', args=[poolId, mainToken]);
+		output = self.mc.execute();
+		data = output[0]
+		successes = output[1]
+
+		pools_by_rebalancer = {};
+		for d, a in zip(data, linearPoolAddresses):
+				pools_by_rebalancer[self.web3.toChecksumAddress(d[3])] = a;
+
+		for rebalancer in pools_by_rebalancer:
+			pool_address = pools_by_rebalancer[rebalancer];
+
+			linearPoolRebalancer = self.balLoadContractAtAddress("ERC4626LinearPoolRebalancer", rebalancer);
+			self.mc.addCall(linearPoolRebalancer.address, linearPoolRebalancer.abi, 'rebalance', args=[self.ZERO_ADDRESS]);
+
+		mc_output = self.mc.execute();
+		results = mc_output[0];
+		successes = mc_output[1];
+		output = {};
+		for result, success, rebalancer in zip(results, successes, list(pools_by_rebalancer.keys())):
+			if success and not result is None and result[0] > 0:
+				amount = result[0];
+				token = main_tokens_by_pool_id[pool_id_by_pool_address[pools_by_rebalancer[rebalancer]]];
+				linearPoolRebalancer = self.balLoadContractAtAddress("ERC4626LinearPoolRebalancer", rebalancer);
+
+				output[rebalancer] = {
+					"token_out":token,
+					"amount_out":float(self.erc20ScaleDecimalsStandard(token, amount)),
+					"gas_estimate":linearPoolRebalancer.functions.rebalance(self.address).estimateGas()
+				}
+		return(output);
+
+	def balDoRebalanceLinearPool(self, pool_address, recipient=None, isAsync=False, gasFactor=1.05, gasPriceSpeed="average", nonceOverride=-1, gasEstimateOverride=-1, gasPriceGweiOverride=-1):
+		linear_pool = self.balLoadContractAtAddress("ERC4626LinearPool", self.web3.toChecksumAddress(pool_address));
+		pool_id = linear_pool.functions.getPoolId().call();
+		main_token = linear_pool.functions.getMainToken().call();
+
+		vault = self.balLoadContract("Vault");
+		pool_token_info = vault.functions.getPoolTokenInfo(pool_id, main_token).call();
+		rebalancer = self.web3.toChecksumAddress(pool_token_info[3]);
+
+		linear_pool_rebalancer = self.balLoadContractAtAddress("ERC4626LinearPoolRebalancer", rebalancer);
+		if recipient is None:
+			recipient = self.address;
+		fn = linear_pool_rebalancer.functions.rebalance(recipient);
+		tx = self.buildTx(fn, gasFactor, gasPriceSpeed, nonceOverride, gasEstimateOverride, gasPriceGweiOverride);
+		tx_hash = self.sendTx(tx, isAsync);
+		return(txHash);
+
 	def balVaultWeth(self):
 		vault = self.balLoadContract("Vault");
 		wethAddress = vault.functions.WETH().call();
@@ -1509,6 +1591,11 @@ class balpy(object):
 	@cache
 	def balLoadContract(self, contractName):
 		contract = self.web3.eth.contract(address=self.deploymentAddresses[contractName], abi=self.abis[contractName]);
+		return(contract)
+
+	@cache
+	def balLoadContractAtAddress(self, contractName, address):
+		contract = self.web3.eth.contract(address=address, abi=self.abis[contractName]);
 		return(contract)
 
 	@cache
