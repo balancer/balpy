@@ -26,7 +26,7 @@ def main():
 
 	verbose = False;
 	bg = balGraph.TheGraph(network)
-	pools = bg.getV2PoolIDs(batch_size, pool_filter="linear", verbose=verbose)
+	pools = bg.getV2PoolIDs(batch_size, verbose=verbose)
 	bg.printJson(pools)
 
 if __name__ == '__main__':
