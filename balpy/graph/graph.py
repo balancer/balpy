@@ -193,7 +193,7 @@ class TheGraph(object):
 				pool_tokens[curr_id] = pool_data;
 		return(pool_tokens)
 
-	def getV2PoolIDs(self, batch_size, verbose=False):
+	def getV2PoolIDs(self, batch_size, pool_filter=None, verbose=False):
 
 		if self.client is None:
 			self.initBalV2Graph(verbose=verbose);
@@ -209,6 +209,8 @@ class TheGraph(object):
 		for i in range(num_calls):
 			response = self.getPools(batch_size, batch_size*i, verbose)
 			for pool in response["pools"]:
+				if not pool_filter is None and not pool_filter.lower() in pool["poolType"].lower():
+					continue;
 				if pool["poolType"] not in poolIdsByType.keys():
 					poolIdsByType[pool["poolType"]] = [];
 				poolIdsByType[pool["poolType"]].append(pool["id"])
