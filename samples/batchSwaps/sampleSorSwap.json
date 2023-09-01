@@ -1,0 +1,24 @@
+{
+  "network": "polygon",
+  "slippageTolerancePercent":"1.0", // Direct percentages (1.0 equates to 1%)
+  "sor": {
+    "sellToken":"0x2791bca1f2de4661ed88a30c99a7a9449aa84174", // token in
+    "buyToken":"0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",  // token out
+    "orderKind":"sell",       // must be "sell" or "buy" for GIVEN_IN and GIVEN_OUT respectively
+    "amount":"0.01",           // denominated as a float; automatically scaled w/ appropriate decimals 
+    
+    // Pick between queried gas price and manual gas price. Manual gas price will override if it is set.
+    "gasSpeed":"fast"         // Option 1: Query the current gas price with "slow", "average", or "fast"
+    // "gasPrice":1000000000  // Option 2: Directly set the gas price in **WEI**
+  },
+  "batchSwap": {
+    "funds": {
+      "sender": "0x7a73a786d16243680B3253a35392860eAE87d071",     // your address
+      "recipient": "0x7a73a786d16243680B3253a35392860eAE87d071",  // your address
+      "fromInternalBalance": false,   // to/from internal balance
+      "toInternalBalance": false      // set to "false" unless you know what you're doing
+    },
+    // unix timestamp after which the trade will revert if it hasn't executed yet
+    "deadline": "999999999999999999"
+  }
+}
