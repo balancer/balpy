@@ -110,6 +110,8 @@ class balpy(object):
 					"sepolia":			{"id":11155111,	"blockExplorerUrl":"sepolia.etherscan.io",			"balFrontend":"app.balancer.fi/#/sepolia"		}
 				};
 
+	apiEndpoint = "https://api.balancer.fi/"
+
 	# ABIs and Deployment Addresses
 	abis = {};
 	deploymentAddresses = {};
@@ -474,6 +476,11 @@ class balpy(object):
 		decimals = self.erc20GetDecimals(tokenAddress);
 		standardBalance = Decimal(amount) * Decimal(10**(-decimals));
 		return(standardBalance);
+
+	def erc20ScaleDecimalsWei(self, tokenAddress, amount):
+		decimals = self.erc20GetDecimals(tokenAddress);
+		weiBalance = Decimal(amount) * Decimal(10**(decimals));
+		return(weiBalance);
 
 	def erc20GetBalanceStandard(self, tokenAddress, address=None):
 		if address is None:
@@ -2061,6 +2068,82 @@ class balpy(object):
 			return("https://" + self.networkParams[self.network]["balFrontend"] + "pool/0x" + poolId);
 		else:
 			return("")
+
+	def balGetApiEndpointSor(self):
+		return(os.path.join(self.apiEndpoint, "sor", str(self.networkParams[self.network]["id"])));
+
+	def balSorQuery(self, data):
+		query = data["sor"];
+
+		# scale amount based on input/output
+		token_for_decimals = query["orderKind"].lower() + "Token";
+		amount_scaled = self.erc20ScaleDecimalsWei(query[token_for_decimals], query["amount"]);
+		query["amount"] = int(amount_scaled);
+
+		# get gas price if not provided
+		if not "gasPrice" in query.keys():
+			gas_price_gwei = self.getGasPrice(query["gasSpeed"]);
+			gas_price_wei = int(gas_price_gwei * 1e9);
+			query["gasPrice"] = gas_price_wei;
+			del query["gasSpeed"];
+
+		# API gets grumpy when you send it numbers. Send everything as a string
+		for field in query:
+			query[field] = str(query[field])
+		response = requests.post(
+			self.balGetApiEndpointSor(),
+			headers={'Content-Type': 'application/json'},
+			data=json.dumps(query)
+		);
+
+		batch_swap = self.balSorResponseToBatchSwapFormat(data, response.json())
+
+		return(batch_swap)
+
+	def balSorResponseToBatchSwapFormat(self, query, response):
+		sor = query["sor"];
+		del query["sor"];
+
+		kind = None;
+		if sor["orderKind"] not in ["buy", "sell"]:
+			bal.ERROR("orderKind must be \"buy\" or \"sell\"");
+			quit();
+		if sor["orderKind"] == "sell":
+			kind = "0";
+		if sor["orderKind"] == "buy":
+			kind = "1";
+
+		query["batchSwap"]["kind"] = kind;
+		query["batchSwap"]["assets"] = response["tokenAddresses"];
+		query["batchSwap"]["swaps"] = response["swaps"];
+		query["batchSwap"]["limits"] = [0] * len(response["tokenAddresses"]);
+
+		for step in query["batchSwap"]["swaps"]:
+			index = step["assetInIndex"];
+			if kind == "1":
+				index = step["assetOutIndex"];
+			asset = query["batchSwap"]["assets"][index]
+			step["amount"] = float(self.erc20ScaleDecimalsStandard(asset, step["amount"]));
+
+		query_results = self.balQueryBatchSwap(query["batchSwap"]);
+
+		idx = 0;
+		for a in query["batchSwap"]["assets"]:
+			chk_asset = self.web3.toChecksumAddress(a);
+			factor = 1.00; # 100%
+			asset_delta = query_results[chk_asset];
+
+			slippage_factor = float(query["slippageTolerancePercent"])/100.0;
+
+			if asset_delta > 0:
+				factor += slippage_factor;
+			else:
+				factor -= slippage_factor;
+
+			query["batchSwap"]["limits"][idx] = asset_delta * factor;
+			idx += 1;
+
+		return(query)
 
 	def multiCallErc20BatchDecimals(self, tokens):
 		self.mc.reset();
