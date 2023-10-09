@@ -30,6 +30,9 @@ See release on PyPI: https://pypi.org/project/balpy/
 ```bash
 # Install in virtual environment using poetry
 git clone https://github.com/balancer-labs/balpy.git
+# checkout submodules
+git submodule update --init --recursive
+
 cd balpy
 poetry install # Install dependencies and package
 # You can enter the virtual environment using

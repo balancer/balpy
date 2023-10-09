@@ -6,15 +6,16 @@ authors = ["Greg <greg@orb.cl>"]
 license = "GNU GPL 3"
 
 [tool.poetry.dependencies]
-python = ">=3.9, <4.0"
-Cython="0.29.24"
+python = ">=3.10,<3.11"
+Cython=">=0.29.24"
 cytoolz="0.11.2"
-requests="2.25.1"
-eth-abi="2.1.1"
-gql="2.0.0"
-multicaller=">=0.0.0a10"
-jstyleson="0.0.2"
-web3="5.19.0"
+requests=">=2.25.1"
+eth-abi=">=2.1.1"
+gql="==2.0.0"
+jstyleson=">=0.0.2"
+web3="~6"
+web3-ethereum-defi = "^0.22.18"
+multicaller = {path = "../multicaller"}
 
 [tool.poetry.dev-dependencies]
 pytest="*"

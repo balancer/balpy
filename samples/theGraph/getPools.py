@@ -14,7 +14,7 @@ def main():
 	else:
 		network = sys.argv[1];
 	
-	networks = ["mainnet", "kovan", "polygon"];
+	networks = ["mainnet", "kovan", "polygon", "goerli", "gnosis"];
 
 	if not network in networks:
 		print("Network", network, "is not supported!");
