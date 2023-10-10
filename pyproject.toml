@@ -11,7 +11,7 @@ Cython=">=0.29.24"
 cytoolz="0.11.2"
 requests=">=2.25.1"
 eth-abi=">=2.1.1"
-gql="==2.0.0"
+gql=">=2.0.0"
 jstyleson=">=0.0.2"
 web3="~6"
 multicaller = {path = "../multicaller"}
