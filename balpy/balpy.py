@@ -1,43 +1,38 @@
 # balpy.py
 
 # python basics
+import binascii
 import copy
+import importlib
 import json
 import os
-import requests
-import time
-import sys
 import pkgutil
-import importlib
-from decimal import *
-from functools import cache
-import traceback
 import random
-import binascii
+import sys
+import time
+from decimal import Decimal, getcontext
+from functools import cache
 
-# low level web3
-from web3 import Web3, middleware
-from web3.gas_strategies.time_based import (
-    glacial_gas_price_strategy,
-    slow_gas_price_strategy,
-    medium_gas_price_strategy,
-    fast_gas_price_strategy,
-)
-from web3.middleware import geth_poa_middleware
-from web3._utils.abi import get_abi_output_types
 import eth_abi
+import requests
 
 # high level web3
 from multicaller import multicaller
 
+# low level web3
+from web3 import Web3, middleware
+from web3.gas_strategies.time_based import (
+    fast_gas_price_strategy,
+    glacial_gas_price_strategy,
+    medium_gas_price_strategy,
+    slow_gas_price_strategy,
+)
+from web3.middleware import geth_poa_middleware
+
 # balpy modules
 from . import balancerErrors as be
-from .enums.stablePoolJoinExitKind import (
-    StablePoolJoinKind,
-    StablePhantomPoolJoinKind,
-    StablePoolExitKind,
-)
-from .enums.weightedPoolJoinExitKind import WeightedPoolJoinKind, WeightedPoolExitKind
+from .enums.stablePoolJoinExitKind import StablePhantomPoolJoinKind
+from .enums.weightedPoolJoinExitKind import WeightedPoolExitKind, WeightedPoolJoinKind
 
 
 class Suppressor(object):
@@ -51,7 +46,7 @@ class Suppressor(object):
         sys.stdout = self.stdout
         sys.stderr = self.stderr
         if type is not None:
-            a = 0
+            pass
             # Do normal exception handling
 
     def write(self, x):
@@ -85,9 +80,9 @@ class balpy(object):
     ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
     # Constants
-    INFINITE = 2 ** 256 - 1
+    INFINITE = 2**256 - 1
     # for infinite unlock
-    MAX_UINT_112 = 2 ** 112 - 1
+    MAX_UINT_112 = 2**112 - 1
     # for stablephantom max bpt
 
     # Environment variable names
@@ -183,8 +178,7 @@ class balpy(object):
         headTail = os.path.split(spec.origin)
         packagePath = headTail[0]
         taskDir = os.path.join(packagePath, deploymentsDir)
-        taskSubDirs = os.listdir(taskDir)
-        taskSubDirs.sort()
+        taskSubDirs = sorted(os.listdir(taskDir))
 
         for t in taskSubDirs:
             # skip deprecated and scripts folders
@@ -271,7 +265,8 @@ class balpy(object):
             self.ERROR(
                 "You need to add your KEY_API_INFURA or BALPY_CUSTOM_RPC environment variables\n"
             )
-            self.ERROR("!! If you are using L2, you must use BALPY_CUSTOM_RPC !!")
+            self.ERROR(
+                "!! If you are using L2, you must use BALPY_CUSTOM_RPC !!")
             print("\t\texport " + self.envVarInfura + "=<yourInfuraApiKey>")
             print("\t\t\tOR")
             print("\t\texport " + self.envVarCustomRPC + "=<yourCustomRPC>")
@@ -283,8 +278,12 @@ class balpy(object):
             quit()
 
         if self.etherscanApiKey is None or self.privateKey is None:
-            self.ERROR("You need to add your keys to the your environment variables")
-            print("\t\texport " + self.envVarEtherscan + "=<yourEtherscanApiKey>")
+            self.ERROR(
+                "You need to add your keys to the your environment variables")
+            print(
+                "\t\texport " +
+                self.envVarEtherscan +
+                "=<yourEtherscanApiKey>")
             print("\t\texport " + self.envVarPrivate + "=<yourPrivateKey>")
             quit()
 
@@ -312,7 +311,8 @@ class balpy(object):
         # initialize gas block caches
         self.currGasPriceSpeed = None
         self.web3.middleware_onion.add(middleware.time_based_cache_middleware)
-        self.web3.middleware_onion.add(middleware.latest_block_based_cache_middleware)
+        self.web3.middleware_onion.add(
+            middleware.latest_block_based_cache_middleware)
         self.web3.middleware_onion.add(middleware.simple_cache_middleware)
 
         # add support for PoA chains
@@ -324,13 +324,16 @@ class balpy(object):
             print("Initialized account", self.web3.eth.default_account)
             print("Connected to web3 at", endpoint)
 
-        usingCustomConfig = not customConfigFile is None
+        usingCustomConfig = customConfigFile is not None
         customConfig = None
         if usingCustomConfig:
 
             # load custom config file if it exists, quit if not
             if not os.path.isfile(customConfigFile):
-                self.ERROR("Custom config file" + customConfigFile + " not found!")
+                self.ERROR(
+                    "Custom config file" +
+                    customConfigFile +
+                    " not found!")
                 quit()
             else:
                 with open(customConfigFile, "r") as f:
@@ -340,7 +343,7 @@ class balpy(object):
             requiredFields = ["contracts", "networkParams"]
             hasAllRequirements = True
             for req in requiredFields:
-                if not req in customConfig.keys():
+                if req not in customConfig.keys():
                     hasAllRequirements = False
             if not hasAllRequirements:
                 self.ERROR("Not all custom fields are in the custom config!")
@@ -370,7 +373,8 @@ class balpy(object):
             _allowFailure=True,
         )
 
-        # reset for the edge case in which we're iterating through multiple networks
+        # reset for the edge case in which we're iterating through multiple
+        # networks
         self.deploymentAddresses = {}
         missingContracts = []
         for contractType in self.contractDirectories.keys():
@@ -400,9 +404,10 @@ class balpy(object):
                     )
                     f = pkgutil.get_data(__name__, deploymentPath).decode()
                     currData = json.loads(f)
-                    currAddress = self.web3.to_checksum_address(currData[contractType])
+                    currAddress = self.web3.to_checksum_address(
+                        currData[contractType])
                 self.deploymentAddresses[contractType] = currAddress
-            except BaseException as error:
+            except BaseException:
                 missingContracts.append(contractType)
 
         print("Available contracts on", self.network)
@@ -455,7 +460,8 @@ class balpy(object):
         if nonceOverride > -1:
             nonce = nonceOverride
         else:
-            nonce = self.web3.eth.get_transaction_count(self.web3.eth.default_account)
+            nonce = self.web3.eth.get_transaction_count(
+                self.web3.eth.default_account)
 
         # Calculate gas estimate if not overridden
         if gasEstimateOverride > -1:
@@ -494,7 +500,8 @@ class balpy(object):
         if not self.omitCalldataFlag:
             tx["data"] += self.calldataFlag
         signedTx = self.web3.eth.account.sign_transaction(tx, self.privateKey)
-        txHash = self.web3.eth.send_raw_transaction(signedTx.rawTransaction).hex()
+        txHash = self.web3.eth.send_raw_transaction(
+            signedTx.rawTransaction).hex()
 
         print()
         print("Sending transaction, view progress at:")
@@ -609,7 +616,8 @@ class balpy(object):
         ) * Decimal(10 ** (-decimals))
         return standardAllowance
 
-    def erc20BuildFunctionSetAllowance(self, tokenAddress, allowedAddress, allowance):
+    def erc20BuildFunctionSetAllowance(
+            self, tokenAddress, allowedAddress, allowance):
         token = self.erc20GetContract(tokenAddress)
         approveFunction = token.functions.approve(allowedAddress, allowance)
         return approveFunction
@@ -670,12 +678,15 @@ class balpy(object):
         for i in range(numElements):
             token = tokens[i]
             amount = amounts[i]
-            currentHasSufficientBalance = self.erc20HasSufficientBalance(token, amount)
+            currentHasSufficientBalance = self.erc20HasSufficientBalance(
+                token, amount)
             sufficientBalance &= currentHasSufficientBalance
         return sufficientBalance
 
-    def erc20HasSufficientAllowance(self, tokenAddress, allowedAddress, amount):
-        currentAllowance = self.erc20GetAllowanceStandard(tokenAddress, allowedAddress)
+    def erc20HasSufficientAllowance(
+            self, tokenAddress, allowedAddress, amount):
+        currentAllowance = self.erc20GetAllowanceStandard(
+            tokenAddress, allowedAddress)
         balance = self.erc20GetBalanceStandard(tokenAddress)
 
         print("Token:", tokenAddress)
@@ -706,12 +717,14 @@ class balpy(object):
         gasPriceGweiOverride,
         isAsync,
     ):
-        if not self.erc20HasSufficientAllowance(tokenAddress, allowedAddress, amount):
+        if not self.erc20HasSufficientAllowance(
+                tokenAddress, allowedAddress, amount):
             if targetAllowance == -1 or targetAllowance == self.INFINITE:
                 targetAllowance = self.INFINITE
             else:
                 decimals = self.erc20GetDecimals(tokenAddress)
-                targetAllowance = Decimal(targetAllowance) * Decimal(10 ** decimals)
+                targetAllowance = Decimal(
+                    targetAllowance) * Decimal(10**decimals)
             targetAllowance = int(targetAllowance)
             print("Insufficient Allowance: Increasing to", targetAllowance)
             txHash = self.erc20SignAndSendNewAllowance(
@@ -787,7 +800,8 @@ class balpy(object):
             )
             return False
 
-        nonce = self.web3.eth.get_transaction_count(self.web3.eth.default_account)
+        nonce = self.web3.eth.get_transaction_count(
+            self.web3.eth.default_account)
         txHashes = []
         numElements = len(tokens)
         for i in range(numElements):
@@ -803,7 +817,7 @@ class balpy(object):
                 nonceOverride=nonce,
                 isAsync=True,
             )
-            if not txHash is None:
+            if txHash is not None:
                 txHashes.append(txHash)
                 nonce += 1
 
@@ -835,7 +849,8 @@ class balpy(object):
                 if dt < 1.0 / self.etherscanMaxRate:
                     time.sleep((1.0 / self.etherscanMaxRate - dt) * 1.1)
 
-                # faking a user-agent resolves the 403 (forbidden) errors on api-kovan.etherscan.io
+                # faking a user-agent resolves the 403 (forbidden) errors on
+                # api-kovan.etherscan.io
                 headers = {
                     "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36",
                     "Upgrade-Insecure-Requests": "1",
@@ -869,7 +884,7 @@ class balpy(object):
         return False
 
     def getGasPriceEtherscanGwei(self, speed, verbose=False):
-        if not speed in self.etherscanSpeedDict.keys():
+        if speed not in self.etherscanSpeedDict.keys():
             self.ERROR("Speed entered is:" + speed)
             self.ERROR("Speed must be one of the following options:")
             for s in self.etherscanSpeedDict.keys():
@@ -893,11 +908,13 @@ class balpy(object):
 
         url = []
         url.append(
-            "/api?module=account&action=txlist{}&address=".format(internalString)
+            "/api?module=account&action=txlist{}&address=".format(
+                internalString)
         )
         url.append(address)
         url.append(
-            "&startblock={}&endblock=99999999&sort=asc&apikey=".format(startblock)
+            "&startblock={}&endblock=99999999&sort=asc&apikey=".format(
+                startblock)
         )
         urlString = "".join(url)
         txns = self.callEtherscan(urlString, verbose=verbose)
@@ -917,13 +934,14 @@ class balpy(object):
         if verbose:
             print(txns)
 
-        if txns == False:
+        if txns is False:
             return False
         return txns
 
     def isContractVerified(self, poolId, verbose=False):
         address = self.balPooldIdToAddress(poolId)
-        url = "/api?module=contract&action=getabi&address={}&apikey=".format(address)
+        url = "/api?module=contract&action=getabi&address={}&apikey=".format(
+            address)
         results = self.callEtherscan(url, verbose=verbose)
         if verbose:
             print(results)
@@ -977,8 +995,10 @@ class balpy(object):
             lowerToOriginal[lowerTokens[i]] = tokensIn[i]
         lowerTokens.sort()
 
-        # get checksum tokens, translated sorted lower tokens back to their original format
-        checksumTokens = [self.web3.to_checksum_address(t) for t in lowerTokens]
+        # get checksum tokens, translated sorted lower tokens back to their
+        # original format
+        checksumTokens = [
+            self.web3.to_checksum_address(t) for t in lowerTokens]
         sortedInputTokens = [lowerToOriginal[f] for f in lowerTokens]
 
         return (sortedInputTokens, checksumTokens)
@@ -1021,13 +1041,13 @@ class balpy(object):
             decimals = self.erc20GetDecimals(token)
             if rawValue == self.INFINITE or rawValue == self.MAX_UINT_112:
                 decimals = 0
-            raw = int(Decimal(rawValue) * Decimal(10 ** decimals))
+            raw = int(Decimal(rawValue) * Decimal(10**decimals))
             rawTokens.append(raw)
         return rawTokens
 
     def balConvertWeiToToken(self, token, wei):
         decimals = self.erc20GetDecimals(token)
-        return float(Decimal(wei) / Decimal(10 ** decimals))
+        return float(Decimal(wei) / Decimal(10**decimals))
 
     def balSetOwner(self, poolData):
         owner = self.ZERO_ADDRESS
@@ -1043,7 +1063,7 @@ class balpy(object):
 
     def generateSalt(self, salt_input=None):
         if salt_input is None:
-            salt_input = random.randint(0, 2 ** 256 - 1)
+            salt_input = random.randint(0, 2**256 - 1)
         salt = eth_abi.encode_abi(["uint256"], [int(salt_input)])
         salt_hex = binascii.hexlify(salt)
         salt_str = "0x" + salt_hex.decode("ascii")
@@ -1051,15 +1071,20 @@ class balpy(object):
 
     def balCreateFnWeightedPoolFactory(self, poolData):
         factory = self.balLoadContract("WeightedPoolFactory")
-        (tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()))
+        (tokens, checksumTokens) = self.balSortTokens(
+            list(poolData["tokens"].keys()))
 
         intWithDecimalsWeights = [
             int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18))
             for t in tokens
         ]
-        swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16))
+        swapFeePercentage = int(
+            Decimal(
+                poolData["swapFeePercent"]) *
+            Decimal(1e16))
         rateProviders = [
-            self.web3.to_checksum_address(poolData["tokens"][token]["rateProvider"])
+            self.web3.to_checksum_address(
+                poolData["tokens"][token]["rateProvider"])
             for token in tokens
         ]
 
@@ -1081,21 +1106,27 @@ class balpy(object):
         return createFunction
 
     def balCreateFnLBPoolFactory(self, poolData):
-        return self.balCreateFnLBPFactory(poolData, "LiquidityBootstrappingPoolFactory")
+        return self.balCreateFnLBPFactory(
+            poolData, "LiquidityBootstrappingPoolFactory")
 
-    def balCreateFnNoProtocolFeeLiquidityBootstrappingPoolFactory(self, poolData):
+    def balCreateFnNoProtocolFeeLiquidityBootstrappingPoolFactory(
+            self, poolData):
         return self.balCreateFnLBPFactory(
             poolData, "NoProtocolFeeLiquidityBootstrappingPoolFactory"
         )
 
     def balCreateFnLBPFactory(self, poolData, factoryName):
         factory = self.balLoadContract(factoryName)
-        (tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()))
+        (tokens, checksumTokens) = self.balSortTokens(
+            list(poolData["tokens"].keys()))
 
         if not self.balWeightsEqualOne(poolData):
             return False
 
-        swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16))
+        swapFeePercentage = int(
+            Decimal(
+                poolData["swapFeePercent"]) *
+            Decimal(1e16))
         intWithDecimalsWeights = [
             int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18))
             for t in tokens
@@ -1138,7 +1169,8 @@ class balpy(object):
         return createFunction
 
     def balCreateFnManagedPoolFactory(self, poolData):
-        self.WARN("!!! You are using the Managed Pool Factory without a controller !!!")
+        self.WARN(
+            "!!! You are using the Managed Pool Factory without a controller !!!")
         self.WARN(
             "You are currently using a factory to deploy a managed pool without a factory-provided controller contract."
         )
@@ -1153,8 +1185,12 @@ class balpy(object):
         )
 
         factory = self.balLoadContract("ManagedPoolFactory")
-        (tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()))
-        swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16))
+        (tokens, checksumTokens) = self.balSortTokens(
+            list(poolData["tokens"].keys()))
+        swapFeePercentage = int(
+            Decimal(
+                poolData["swapFeePercent"]) *
+            Decimal(1e16))
         intWithDecimalsWeights = [
             int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18))
             for t in tokens
@@ -1204,12 +1240,17 @@ class balpy(object):
 
     def balCreateFnComposableStablePoolFactory(self, poolData):
         factory = self.balLoadContract("ComposableStablePoolFactory")
-        (tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()))
-        swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16))
+        (tokens, checksumTokens) = self.balSortTokens(
+            list(poolData["tokens"].keys()))
+        swapFeePercentage = int(
+            Decimal(
+                poolData["swapFeePercent"]) *
+            Decimal(1e16))
         owner = self.balSetOwner(poolData)
 
         rateProviders = [
-            self.web3.to_checksum_address(poolData["tokens"][token]["rateProvider"])
+            self.web3.to_checksum_address(
+                poolData["tokens"][token]["rateProvider"])
             for token in tokens
         ]
         tokenRateCacheDurations = [
@@ -1233,8 +1274,12 @@ class balpy(object):
 
     def balCreateFnLinearPoolFactory(self, poolData, factoryName):
         factory = self.balLoadContract(factoryName)
-        (tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()))
-        swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16))
+        (tokens, checksumTokens) = self.balSortTokens(
+            list(poolData["tokens"].keys()))
+        swapFeePercentage = int(
+            Decimal(
+                poolData["swapFeePercent"]) *
+            Decimal(1e16))
         owner = self.balSetOwner(poolData)
 
         mainToken = None
@@ -1266,10 +1311,12 @@ class balpy(object):
         return createFunction
 
     def balCreateFnAaveLinearPoolFactory(self, poolData):
-        return self.balCreateFnLinearPoolFactory(poolData, "AaveLinearPoolFactory")
+        return self.balCreateFnLinearPoolFactory(
+            poolData, "AaveLinearPoolFactory")
 
     def balCreateFnERC4626LinearPoolFactory(self, poolData):
-        return self.balCreateFnLinearPoolFactory(poolData, "ERC4626LinearPoolFactory")
+        return self.balCreateFnLinearPoolFactory(
+            poolData, "ERC4626LinearPoolFactory")
 
     def balCreatePoolInFactory(
         self,
@@ -1285,19 +1332,23 @@ class balpy(object):
 
         # list of all supported pool factories
         # NOTE: when you add a pool factory to this list, be sure to
-        # 		add it to the printout of supported factories below
+        #       add it to the printout of supported factories below
         if poolFactoryName == "WeightedPoolFactory":
-            createFunction = self.balCreateFnWeightedPoolFactory(poolDescription)
+            createFunction = self.balCreateFnWeightedPoolFactory(
+                poolDescription)
         if poolFactoryName == "ManagedPoolFactory":
-            createFunction = self.balCreateFnManagedPoolFactory(poolDescription)
+            createFunction = self.balCreateFnManagedPoolFactory(
+                poolDescription)
         if poolFactoryName == "ComposableStablePoolFactory":
             createFunction = self.balCreateFnComposableStablePoolFactory(
                 poolDescription
             )
         if poolFactoryName == "AaveLinearPoolFactory":
-            createFunction = self.balCreateFnAaveLinearPoolFactory(poolDescription)
+            createFunction = self.balCreateFnAaveLinearPoolFactory(
+                poolDescription)
         if poolFactoryName == "ERC4626LinearPoolFactory":
-            createFunction = self.balCreateFnERC4626LinearPoolFactory(poolDescription)
+            createFunction = self.balCreateFnERC4626LinearPoolFactory(
+                poolDescription)
         if poolFactoryName == "NoProtocolFeeLiquidityBootstrappingPoolFactory":
             createFunction = (
                 self.balCreateFnNoProtocolFeeLiquidityBootstrappingPoolFactory(
@@ -1347,7 +1398,10 @@ class balpy(object):
 
     def balFindPoolFactory(self, poolId):
         contractNames = self.deploymentAddresses.keys()
-        factoryNames = [c for c in contractNames if ("Factory" in c) and ("Pool" in c)]
+        factoryNames = [
+            c for c in contractNames if (
+                "Factory" in c) and (
+                "Pool" in c)]
         # can't simply use "PoolFactory" b/c of WeightedPool2TokensFactory
 
         self.mc.reset()
@@ -1372,7 +1426,8 @@ class balpy(object):
             self.ERROR("Was expecting 1 factory, got " + str(numFound))
             self.ERROR(",".join(foundFactoryName))
             self.ERROR(
-                "Checked the following factories:\n\t\t" + "\n\t\t".join(factoryNames)
+                "Checked the following factories:\n\t\t" +
+                "\n\t\t".join(factoryNames)
             )
             return None
 
@@ -1406,8 +1461,8 @@ class balpy(object):
         )
         amountKey = "amount"
         if (
-            not amountKey
-            in joinDescription["tokens"][
+            amountKey
+            not in joinDescription["tokens"][
                 list(joinDescription["tokens"].keys())[0]
             ].keys()
         ):
@@ -1415,7 +1470,8 @@ class balpy(object):
         amountsBySortedTokens = [
             joinDescription["tokens"][token][amountKey] for token in sortedTokens
         ]
-        maxAmountsIn = self.balConvertTokensToWei(sortedTokens, amountsBySortedTokens)
+        maxAmountsIn = self.balConvertTokensToWei(
+            sortedTokens, amountsBySortedTokens)
         return (checksumTokens, maxAmountsIn)
 
     def balGetTokensAndAmountsComposable(self, joinDescription):
@@ -1491,7 +1547,8 @@ class balpy(object):
                 userDataMaxAmountsIn,
             ) = self.balGetTokensAndAmountsComposable(copy.deepcopy(joinDescription))
 
-        joinKindEnum = self.balGetJoinKindEnum(poolId, joinDescription["joinKind"])
+        joinKindEnum = self.balGetJoinKindEnum(
+            poolId, joinDescription["joinKind"])
         userDataEncoded = eth_abi.encode_abi(
             ["uint256", "uint256[]"], [int(joinKindEnum), userDataMaxAmountsIn]
         )
@@ -1509,7 +1566,8 @@ class balpy(object):
             copy.deepcopy(joinDescription)
         )
         poolId = joinDescription["poolId"]
-        joinKindEnum = self.balGetJoinKindEnum(poolId, joinDescription["joinKind"])
+        joinKindEnum = self.balGetJoinKindEnum(
+            poolId, joinDescription["joinKind"])
         userDataEncoded = eth_abi.encode_abi(
             ["uint256", "uint256[]"], [int(joinKindEnum), maxAmountsIn]
         )
@@ -1532,7 +1590,8 @@ class balpy(object):
             [poolAddress], [joinDescription["bptAmountOut"]]
         )[0]
 
-        joinKindEnum = self.balGetJoinKindEnum(poolId, joinDescription["joinKind"])
+        joinKindEnum = self.balGetJoinKindEnum(
+            poolId, joinDescription["joinKind"])
         userDataEncoded = eth_abi.encode_abi(
             ["uint256", "uint256"], [int(joinKindEnum), bptAmountOut]
         )
@@ -1574,9 +1633,11 @@ class balpy(object):
             [poolAddress], [joinDescription["bptAmountOut"]]
         )[0]
 
-        joinKindEnum = self.balGetJoinKindEnum(poolId, joinDescription["joinKind"])
+        joinKindEnum = self.balGetJoinKindEnum(
+            poolId, joinDescription["joinKind"])
         userDataEncoded = eth_abi.encode_abi(
-            ["uint256", "uint256", "uint256"], [int(joinKindEnum), bptAmountOut, index]
+            ["uint256", "uint256", "uint256"], [
+                int(joinKindEnum), bptAmountOut, index]
         )
 
         address = self.web3.to_checksum_address(self.web3.eth.default_account)
@@ -1703,7 +1764,8 @@ class balpy(object):
         gasPriceGweiOverride=-1,
     ):
 
-        if poolDescription["poolType"] in ["AaveLinearPool", "ERC4626LinearPool"]:
+        if poolDescription["poolType"] in [
+                "AaveLinearPool", "ERC4626LinearPool"]:
             slippageTolerancePercent = 1
             txHash = self.balLinearPoolInitJoin(
                 poolDescription,
@@ -1717,7 +1779,8 @@ class balpy(object):
             )
             return txHash
 
-        # StablePhantomPools need their own BPT as one of the provided tokens with a limit of MAX_UINT_112
+        # StablePhantomPools need their own BPT as one of the provided tokens
+        # with a limit of MAX_UINT_112
         if poolDescription["poolType"] in [
             "StablePhantomPool",
             "ComposableStablePool",
@@ -1727,6 +1790,7 @@ class balpy(object):
                 poolDescription["tokens"][token]["initialBalance"]
                 for token in poolDescription["tokens"].keys()
             ]
+            print(f"Currently unused : {initialBalancesNoBpt}")
             phantomBptAddress = self.balPooldIdToAddress(poolId)
             poolDescription["tokens"][phantomBptAddress] = {
                 "initialBalance": self.MAX_UINT_112
@@ -1773,7 +1837,8 @@ class balpy(object):
             if float(swap["amount"]) > 0.0:
                 batchSwap["swaps"].append(swap)
 
-        # add the phantomBpt to the assets/limits list now that we've crafted the swap steps
+        # add the phantomBpt to the assets/limits list now that we've crafted
+        # the swap steps
         batchSwap["assets"].append(phantomBptAddress)
         batchSwap["limits"] = [0] * len(batchSwap["assets"])
         # for now
@@ -1787,13 +1852,15 @@ class balpy(object):
 
         estimates = self.balQueryBatchSwap(batchSwap)
 
-        checksumTokens = [self.web3.to_checksum_address(t) for t in batchSwap["assets"]]
+        checksumTokens = [self.web3.to_checksum_address(
+            t) for t in batchSwap["assets"]]
         for i in range(len(batchSwap["assets"])):
             asset = checksumTokens[i]
             slippageToleranceFactor = slippageTolerancePercent / 100.0
             if estimates[asset] < 0:
                 slippageToleranceFactor *= -1.0
-            batchSwap["limits"][i] = estimates[asset] * (1.0 + slippageToleranceFactor)
+            batchSwap["limits"][i] = estimates[asset] * \
+                (1.0 + slippageToleranceFactor)
 
         txHash = self.balDoBatchSwap(
             batchSwap,
@@ -1812,7 +1879,8 @@ class balpy(object):
             poolId, address, address, exitPoolRequestTuple
         ).call()
 
-    def balFormatQueryExitPoolOutput(self, queryExitPoolOutput, tokens, poolAddress):
+    def balFormatQueryExitPoolOutput(
+            self, queryExitPoolOutput, tokens, poolAddress):
         result = {}
         bptAmountIn, tokensAmountsOut = queryExitPoolOutput
         result["bptIn"] = {
@@ -1865,7 +1933,8 @@ class balpy(object):
     ):
         minAmountsOut = self.balConvertTokensToWei(tokens, minAmountsOut)
         userData = eth_abi.encode_abi(
-            ["uint256", "uint256", "uint256"], [exitKindValue, bptAmount, tokenOut]
+            ["uint256", "uint256", "uint256"], [
+                exitKindValue, bptAmount, tokenOut]
         )
         return tokens, minAmountsOut, userData, toInternalBalance
 
@@ -1906,7 +1975,8 @@ class balpy(object):
 
         for tokenAddresses, tokenKey in sorted(zip(tokenAddresses, tokenKeys)):
             tokenAddressesSorted.append(tokenAddresses)
-            minAmountsOutSorted.append(float(tokens[tokenKey].get("minAmount", 0)))
+            minAmountsOutSorted.append(
+                float(tokens[tokenKey].get("minAmount", 0)))
             amountsOutSorted.append(float(tokens[tokenKey].get("amount", 0)))
 
         tokenOutSorted = None
@@ -1936,7 +2006,8 @@ class balpy(object):
 
         poolAddress = self.balPooldIdToAddress(poolId)
         exitKindValue = WeightedPoolExitKind[exitKind].value
-        userAddress = self.web3.to_checksum_address(self.web3.eth.default_account)
+        userAddress = self.web3.to_checksum_address(
+            self.web3.eth.default_account)
         (
             tokenAddresses,
             amountsOut,
@@ -2010,10 +2081,12 @@ class balpy(object):
         )
 
     def balGetRebalanceLinearPoolsData(self, linearPoolAddresses):
-        # Can realistically be any linear pool, this one just is the most generic.
+        # Can realistically be any linear pool, this one just is the most
+        # generic.
         poolAbi = self.balPoolGetAbi("ERC4626LinearPool")
 
-        # get poolIds and mainTokens to feed into getPoolTokenInfo (to get asset managers)
+        # get poolIds and mainTokens to feed into getPoolTokenInfo (to get
+        # asset managers)
         for i in linearPoolAddresses:
             self.mc.addCall(i, poolAbi, "getPoolId")
             self.mc.addCall(i, poolAbi, "getMainToken")
@@ -2028,13 +2101,13 @@ class balpy(object):
                 poolId = "0x" + output[0][i][0].hex()
                 mainToken = self.web3.to_checksum_address(output[0][i + 1][0])
                 main_tokens_by_pool_id[poolId] = mainToken
-                pool_id_by_pool_address[linearPoolAddresses[int(i / 2)]] = poolId
+                pool_id_by_pool_address[linearPoolAddresses[int(
+                    i / 2)]] = poolId
 
         self.multiCallErc20BatchDecimals(list(main_tokens_by_pool_id.values()))
 
         # determine each linear pool's asset manager (the rebalancer)
         vault = self.balLoadContract("Vault")
-        assetManagers = []
         for poolId in main_tokens_by_pool_id:
             mainToken = main_tokens_by_pool_id[poolId]
             self.mc.addCall(
@@ -2049,7 +2122,7 @@ class balpy(object):
             pools_by_rebalancer[self.web3.to_checksum_address(d[3])] = a
 
         for rebalancer in pools_by_rebalancer:
-            pool_address = pools_by_rebalancer[rebalancer]
+            pools_by_rebalancer[rebalancer]
 
             linearPoolRebalancer = self.balLoadContractAtAddress(
                 "ERC4626LinearPoolRebalancer", rebalancer
@@ -2068,7 +2141,7 @@ class balpy(object):
         for result, success, rebalancer in zip(
             results, successes, list(pools_by_rebalancer.keys())
         ):
-            if success and not result is None and result[0] > 0:
+            if success and result is not None and result[0] > 0:
                 amount = result[0]
                 token = main_tokens_by_pool_id[
                     pool_id_by_pool_address[pools_by_rebalancer[rebalancer]]
@@ -2104,7 +2177,8 @@ class balpy(object):
         main_token = linear_pool.functions.getMainToken().call()
 
         vault = self.balLoadContract("Vault")
-        pool_token_info = vault.functions.getPoolTokenInfo(pool_id, main_token).call()
+        pool_token_info = vault.functions.getPoolTokenInfo(
+            pool_id, main_token).call()
         rebalancer = self.web3.to_checksum_address(pool_token_info[3])
 
         linear_pool_rebalancer = self.balLoadContractAtAddress(
@@ -2121,7 +2195,7 @@ class balpy(object):
             gasEstimateOverride,
             gasPriceGweiOverride,
         )
-        tx_hash = self.sendTx(tx, isAsync)
+        txHash = self.sendTx(tx, isAsync)
         return txHash
 
     def balVaultWeth(self):
@@ -2153,13 +2227,15 @@ class balpy(object):
 
         vault = self.balLoadContract("Vault")
         (sortedTokens, checksumTokens) = self.balSortTokens(tokens)
-        balances = vault.functions.getInternalBalance(address, checksumTokens).call()
+        balances = vault.functions.getInternalBalance(
+            address, checksumTokens).call()
         numElements = len(sortedTokens)
         internalBalances = {}
         for i in range(numElements):
             token = checksumTokens[i]
             decimals = self.erc20GetDecimals(token)
-            internalBalances[token] = Decimal(balances[i]) * Decimal(10 ** (-decimals))
+            internalBalances[token] = Decimal(
+                balances[i]) * Decimal(10 ** (-decimals))
         return internalBalances
 
     def balVaultGetPool(self, poolId):
@@ -2170,7 +2246,8 @@ class balpy(object):
     def balVaultGetPoolTokenInfo(self, poolId, tokenAddress):
         vault = self.balLoadContract("Vault")
         tokenAddress = self.web3.to_checksum_address(tokenAddress)
-        tokenInfo = vault.functions.getPoolTokenInfo(poolId, tokenAddress).call()
+        tokenInfo = vault.functions.getPoolTokenInfo(
+            poolId, tokenAddress).call()
         cash, managed, lastChangeBlock, assetManager = tokenInfo
         return cash, managed, lastChangeBlock, assetManager
 
@@ -2294,7 +2371,8 @@ class balpy(object):
         txHash = self.sendTx(tx, isAsync)
         return txHash
 
-    def balVaultBuildManageUserBalanceFn(self, kind, token, amount, sender, recipient):
+    def balVaultBuildManageUserBalanceFn(
+            self, kind, token, amount, sender, recipient):
         kind = kind
         asset = self.web3.to_checksum_address(token)
         amount = self.balConvertTokensToWei([token], [amount])[0]
@@ -2315,7 +2393,8 @@ class balpy(object):
 
     @cache
     def balLoadContractAtAddress(self, contractName, address):
-        contract = self.web3.eth.contract(address=address, abi=self.abis[contractName])
+        contract = self.web3.eth.contract(
+            address=address, abi=self.abis[contractName])
         return contract
 
     @cache
@@ -2331,7 +2410,7 @@ class balpy(object):
         if poolType == "HighAmpComposableStable":
             poolType = "ComposableStable"
 
-        if not "Pool" in poolType:
+        if "Pool" not in poolType:
             poolType = poolType + "Pool"
 
         deploymentFolder = None
@@ -2367,7 +2446,7 @@ class balpy(object):
 
     @cache
     def balPooldIdToAddress(self, poolId):
-        if not "0x" in poolId:
+        if "0x" not in poolId:
             poolId = "0x" + poolId
         poolAddress = self.web3.to_checksum_address(poolId[:42])
         return poolAddress
@@ -2401,7 +2480,8 @@ class balpy(object):
                 print(txn)
             poolFactoryType = poolTypeByContract[txn["to"].lower()]
             txHash = txn["hash"]
-            stamp = self.web3.eth.get_block(int(txn["blockNumber"], 16))["timestamp"]
+            stamp = self.web3.eth.get_block(
+                int(txn["blockNumber"], 16))["timestamp"]
 
         return (address, poolFactoryType, txHash, stamp)
 
@@ -2424,7 +2504,8 @@ class balpy(object):
             )
             return False
 
-        # query etherscan for internal transactions to find pool factory, pool creation time, and creation hash
+        # query etherscan for internal transactions to find pool factory, pool
+        # creation time, and creation hash
         (address, poolFactoryType, txHash, stampPool) = self.balGetPoolCreationData(
             poolId, verbose=verbose, inputHash=creationHash
         )
@@ -2434,15 +2515,18 @@ class balpy(object):
 
         # decode those ^ inputs according to the relevant pool factory ABI
         poolFactoryContract = self.balLoadContract(poolFactoryType)
-        decodedPoolData = poolFactoryContract.decode_function_input(inputData)[1]
+        decodedPoolData = poolFactoryContract.decode_function_input(inputData)[
+            1]
 
         # get pool factory creation time to calculate pauseWindowDuration
-        stampFactory = self.balGetPoolFactoryCreationTime(poolFactoryContract.address)
+        stampFactory = self.balGetPoolFactoryCreationTime(
+            poolFactoryContract.address)
 
         # make sure arguments exist/are proper types to be encoded
         if "weights" in decodedPoolData.keys():
             for i in range(len(decodedPoolData["weights"])):
-                decodedPoolData["weights"][i] = int(decodedPoolData["weights"][i])
+                decodedPoolData["weights"][i] = int(
+                    decodedPoolData["weights"][i])
         if "priceRateCacheDuration" in decodedPoolData.keys():
             for i in range(len(decodedPoolData["priceRateCacheDuration"])):
                 decodedPoolData["priceRateCacheDuration"][i] = int(
@@ -2450,7 +2534,7 @@ class balpy(object):
                 )
         if (
             poolFactoryType == "InvestmentPoolFactory"
-            and not "assetManagers" in decodedPoolData.keys()
+            and "assetManagers" not in decodedPoolData.keys()
         ):
             decodedPoolData["assetManagers"] = []
             for i in range(len(decodedPoolData["weights"])):
@@ -2662,10 +2746,12 @@ class balpy(object):
 
         owner = pool.functions.getOwner().call()
         if not self.address == owner:
-            self.ERROR("You are not the pool owner; this transaction will fail.")
+            self.ERROR(
+                "You are not the pool owner; this transaction will fail.")
             return False
 
-        fn = pool.functions.startAmplificationParameterUpdate(rawEndValue, endTime)
+        fn = pool.functions.startAmplificationParameterUpdate(
+            rawEndValue, endTime)
         tx = self.buildTx(
             fn,
             gasFactor,
@@ -2681,7 +2767,8 @@ class balpy(object):
     def balOraclePoolGetTimeWeightedAverage(self, poolId, queries):
         poolAddress = self.web3.to_checksum_address(poolId[:42])
         pool = self.web3.eth.contract(
-            address=poolAddress, abi=self.balPoolGetAbi("WeightedPool2TokensFactory")
+            address=poolAddress, abi=self.balPoolGetAbi(
+                "WeightedPool2TokensFactory")
         )
         results = pool.functions.getTimeWeightedAverage(queries).call()
         return results
@@ -2698,8 +2785,7 @@ class balpy(object):
         tokenAddressToIdx = {}
         for i in range(len(tokens)):
             tokenAddressToIdx[tokens[i]] = i
-        sortedTokens = tokens
-        sortedTokens.sort()
+        sortedTokens = sorted(tokens)
         for i in range(len(sortedTokens)):
             originalIdxToSortedIdx[tokenAddressToIdx[sortedTokens[i]]] = i
             sortedIdxToOriginalIdx[i] = tokenAddressToIdx[sortedTokens[i]]
@@ -2710,7 +2796,7 @@ class balpy(object):
         userData = userDataNull
         # for weightedPools, user data is just null, but in the future there may be userData to pass to pools for swaps
         # if poolType == "someFuturePool":
-        # 	userData = "something else";
+        #   userData = "something else";
         return userData
 
     def balDoSwap(
@@ -2788,7 +2874,8 @@ class balpy(object):
         fundStruct = (
             self.web3.to_checksum_address(swapDescription["fund"]["sender"]),
             swapDescription["fund"]["fromInternalBalance"],
-            self.web3.to_checksum_address(swapDescription["fund"]["recipient"]),
+            self.web3.to_checksum_address(
+                swapDescription["fund"]["recipient"]),
             swapDescription["fund"]["toInternalBalance"],
         )
         vault = self.balLoadContract("Vault")
@@ -2812,11 +2899,15 @@ class balpy(object):
                 swapDescription["limits"][sortedIdxToOriginalIdx[i]]
             )
             decimals = self.erc20GetDecimals(sortedTokens[i])
-            currLimitRaw = int(Decimal(currLimitStandard) * Decimal(10 ** (decimals)))
+            currLimitRaw = int(
+                Decimal(currLimitStandard) *
+                Decimal(
+                    10 ** (decimals)))
             reorderedLimits.append(currLimitRaw)
 
         kind = int(swapDescription["kind"])
-        assets = [self.web3.to_checksum_address(token) for token in sortedTokens]
+        assets = [self.web3.to_checksum_address(
+            token) for token in sortedTokens]
 
         swapsTuples = []
         for swap in swapDescription["swaps"]:
@@ -2842,7 +2933,8 @@ class balpy(object):
         funds = (
             self.web3.to_checksum_address(swapDescription["funds"]["sender"]),
             swapDescription["funds"]["fromInternalBalance"],
-            self.web3.to_checksum_address(swapDescription["funds"]["recipient"]),
+            self.web3.to_checksum_address(
+                swapDescription["funds"]["recipient"]),
             swapDescription["funds"]["toInternalBalance"],
         )
         intReorderedLimits = [int(element) for element in reorderedLimits]
@@ -2869,7 +2961,8 @@ class balpy(object):
         vault = self.balLoadContract("Vault")
         for swapDescription in swapsDescription:
 
-            # do deep copy to avoid modifying the swapDescription in place, breaking index remappings
+            # do deep copy to avoid modifying the swapDescription in place,
+            # breaking index remappings
             deepCopySwapDescription = copy.deepcopy(swapDescription)
             (
                 kind,
@@ -2880,7 +2973,11 @@ class balpy(object):
                 deadline,
             ) = self.balFormatBatchSwapData(deepCopySwapDescription)
             args = [kind, swapsTuples, assets, funds]
-            self.mc.addCall(vault.address, vault.abi, "queryBatchSwap", args=args)
+            self.mc.addCall(
+                vault.address,
+                vault.abi,
+                "queryBatchSwap",
+                args=args)
         data = self.mc.execute()
 
         outputs = []
@@ -2938,7 +3035,8 @@ class balpy(object):
 
     def balGetApiEndpointSor(self):
         return os.path.join(
-            self.apiEndpoint, "sor", str(self.networkParams[self.network]["id"])
+            self.apiEndpoint, "sor", str(
+                self.networkParams[self.network]["id"])
         )
 
     def balSorQuery(self, data):
@@ -2953,7 +3051,7 @@ class balpy(object):
         query["amount"] = int(amount_scaled)
 
         # get gas price if not provided
-        if not "gasPrice" in query.keys():
+        if "gasPrice" not in query.keys():
             gas_price_gwei = self.getGasPrice(query["gasSpeed"])
             gas_price_wei = int(gas_price_gwei * 1e9)
             query["gasPrice"] = gas_price_wei
@@ -2968,7 +3066,8 @@ class balpy(object):
             data=json.dumps(query),
         )
 
-        batch_swap = self.balSorResponseToBatchSwapFormat(data, response.json())
+        batch_swap = self.balSorResponseToBatchSwapFormat(
+            data, response.json())
 
         return batch_swap
 
@@ -2978,7 +3077,7 @@ class balpy(object):
 
         kind = None
         if sor["orderKind"] not in ["buy", "sell"]:
-            bal.ERROR('orderKind must be "buy" or "sell"')
+            self.ERROR('orderKind must be "buy" or "sell"')
             quit()
         if sor["orderKind"] == "sell":
             kind = "0"
@@ -3022,7 +3121,6 @@ class balpy(object):
 
     def multiCallErc20BatchDecimals(self, tokens):
         self.mc.reset()
-        payload = []
         for token in tokens:
             currTokenContract = self.erc20GetContract(token)
             self.mc.addCall(
@@ -3046,15 +3144,13 @@ class balpy(object):
 
         # load the vault contract
         vault = self.balLoadContract("Vault")
-        target = vault.address
+        vault.address
 
         poolAbis = {}
         for poolType in pools.keys():
             poolAbis[poolType] = self.balPoolGetAbi(poolType)
 
-        payload = []
         pidAndFns = []
-        outputAbis = {}
 
         poolToType = {}
         for poolType in pools.keys():
@@ -3077,14 +3173,21 @@ class balpy(object):
                 self.mc.addCall(
                     vault.address, vault.abi, "getPoolTokens", args=[poolId]
                 )
-                self.mc.addCall(currPool.address, currPool.abi, "getSwapFeePercentage")
-                self.mc.addCall(currPool.address, currPool.abi, "getPausedState")
+                self.mc.addCall(
+                    currPool.address,
+                    currPool.abi,
+                    "getSwapFeePercentage")
+                self.mc.addCall(
+                    currPool.address,
+                    currPool.abi,
+                    "getPausedState")
                 pidAndFns.append((poolId, "getPoolTokens"))
                 pidAndFns.append((poolId, "getSwapFeePercentage"))
                 pidAndFns.append((poolId, "getPausedState"))
 
                 # === using weighted math ===
-                if poolType in ["Weighted", "LiquidityBootstrapping", "Investment"]:
+                if poolType in ["Weighted",
+                                "LiquidityBootstrapping", "Investment"]:
                     self.mc.addCall(
                         currPool.address, currPool.abi, "getNormalizedWeights"
                     )
@@ -3099,7 +3202,10 @@ class balpy(object):
 
                 # === have pausable swaps by pool owner ===
                 if poolType in ["LiquidityBootstrapping", "Investment"]:
-                    self.mc.addCall(currPool.address, currPool.abi, "getSwapEnabled")
+                    self.mc.addCall(
+                        currPool.address,
+                        currPool.abi,
+                        "getSwapEnabled")
                     pidAndFns.append((poolId, "getSwapEnabled"))
 
         data = self.mc.execute()
@@ -3112,7 +3218,7 @@ class balpy(object):
             poolId = pidAndFn[0]
             decoder = pidAndFn[1]
 
-            if not poolId in chainDataOut.keys():
+            if poolId not in chainDataOut.keys():
                 chainDataOut[poolId] = {"poolType": poolToType[poolId]}
                 chainDataBookkeeping[poolId] = {}
 
@@ -3133,9 +3239,12 @@ class balpy(object):
             elif decoder == "getNormalizedWeights":
                 normalizedWeights = list(decodedOutputData[0])
                 addresses = chainDataBookkeeping[poolId]["orderedAddresses"]
-                for address, normalizedWeight in zip(addresses, normalizedWeights):
-                    weight = Decimal(str(normalizedWeight)) * Decimal(str(1e-18))
-                    chainDataOut[poolId]["tokens"][address]["weight"] = str(weight)
+                for address, normalizedWeight in zip(
+                        addresses, normalizedWeights):
+                    weight = Decimal(str(normalizedWeight)) * \
+                        Decimal(str(1e-18))
+                    chainDataOut[poolId]["tokens"][address]["weight"] = str(
+                        weight)
 
             elif decoder == "getSwapFeePercentage":
                 swapFee = Decimal(decodedOutputData[0]) * Decimal(str(1e-18))
@@ -3188,7 +3297,8 @@ class balpy(object):
         addresses = []
 
         network = self.network
-        blockExplorer = "https://" + self.networkParams[network]["blockExplorerUrl"]
+        blockExplorer = "https://" + \
+            self.networkParams[network]["blockExplorerUrl"]
         outputString += '{% tab title="' + network.title() + '" %}\n'
 
         for contractType in self.deploymentAddresses:

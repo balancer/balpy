@@ -4,32 +4,35 @@ import math
 import sys
 import time
 
-# thegraph queries
-from gql import gql, Client
-from gql.transport.requests import RequestsHTTPTransport
-
 # for customized endpoints
 import requests
+
+# thegraph queries
+from gql import Client, gql
+from gql.transport.requests import RequestsHTTPTransport
 
 
 class TheGraph(object):
     client = None
 
     """
-	A starting point for querying pool data from the Balancer Subgraph.
-		At time of writing, this package does not cover all types of queries
-		possible to the Balancer V2 Subgraph. It does, however, allow users 
-		to query pool data, among other things. Types of queries will ultimately
-		grow to include all possible queries to the Balancer Subgraph.
+    A starting point for querying pool data from the Balancer Subgraph.
+        At time of writing, this package does not cover all types of queries
+        possible to the Balancer V2 Subgraph. It does, however, allow users
+        to query pool data, among other things. Types of queries will ultimately
+        grow to include all possible queries to the Balancer Subgraph.
 
-		For more information on the Subgraph, please go to:
-		https://thegraph.com/legacy-explorer/subgraph/balancer-labs/balancer-v2
-	"""
+        For more information on the Subgraph, please go to:
+        https://thegraph.com/legacy-explorer/subgraph/balancer-labs/balancer-v2
+    """
 
-    def __init__(self, network="mainnet", customUrl=None, usingJsonEndpoint=False):
+    def __init__(self, network="mainnet", customUrl=None,
+                 usingJsonEndpoint=False):
         super(TheGraph, self).__init__()
         self.network = network
-        self.initBalV2Graph(customUrl=customUrl, usingJsonEndpoint=usingJsonEndpoint)
+        self.initBalV2Graph(
+            customUrl=customUrl,
+            usingJsonEndpoint=usingJsonEndpoint)
 
     def printJson(self, curr_dict):
         print(json.dumps(curr_dict, indent=4))
@@ -54,7 +57,7 @@ class TheGraph(object):
             return None
 
     def initBalV2Graph(self, customUrl, usingJsonEndpoint, verbose=False):
-        if not customUrl is None and usingJsonEndpoint:
+        if customUrl is not None and usingJsonEndpoint:
             self.client = "CUSTOM"
             self.graphUrl = customUrl
             return True
@@ -71,10 +74,11 @@ class TheGraph(object):
             + network_string
             + "-v2"
         )
-        if not customUrl is None and not usingJsonEndpoint:
+        if customUrl is not None and not usingJsonEndpoint:
             graphUrl = customUrl
 
-        balancer_transport = RequestsHTTPTransport(url=graphUrl, verify=True, retries=3)
+        balancer_transport = RequestsHTTPTransport(
+            url=graphUrl, verify=True, retries=3)
         self.client = Client(transport=balancer_transport)
 
         if verbose:
@@ -88,21 +92,21 @@ class TheGraph(object):
             print("Querying tokens for pool with ID:", pool_id)
 
         pool_token_query = """
-		query {{
-		  poolTokens(first: 8, where: {{ poolId: "{pool_id}" }}) {{
-		    id
-			poolId {{
-				id
-			}}
-			symbol
-			name
-			decimals
-			address
-			balance
-			weight
-		  }}
-		}}
-		"""
+        query {{
+          poolTokens(first: 8, where: {{ poolId: "{pool_id}" }}) {{
+            id
+            poolId {{
+                id
+            }}
+            symbol
+            name
+            decimals
+            address
+            balance
+            weight
+          }}
+        }}
+        """
         formatted_query_string = pool_token_query.format(pool_id=pool_id)
         if self.client == "CUSTOM":
             response = self.callCustomEndpoint(formatted_query_string)
@@ -120,13 +124,13 @@ class TheGraph(object):
 
         # get number of balancer pools on v2
         balancers_query = """
-		query {
-			balancers(first: 5) {
-		    id
-		    poolCount
-		  }
-		}
-		"""
+        query {
+            balancers(first: 5) {
+            id
+            poolCount
+          }
+        }
+        """
         if self.client == "CUSTOM":
             response = self.callCustomEndpoint(balancers_query)
         else:
@@ -145,20 +149,27 @@ class TheGraph(object):
 
         self.assertInit()
         if verbose:
-            print("Querying pools #", skips, "through #", skips + batch_size, "...")
+            print(
+                "Querying pools #",
+                skips,
+                "through #",
+                skips +
+                batch_size,
+                "...")
 
         query_string = """
-			query {{
-			  pools(first: {first}, skip: {skip}) {{
-			    id
-			    address
-			    poolType
-			    strategyType
-			    swapFee
-			  }}
-			}}
-			"""
-        formatted_query_string = query_string.format(first=batch_size, skip=skips)
+            query {{
+              pools(first: {first}, skip: {skip}) {{
+                id
+                address
+                poolType
+                strategyType
+                swapFee
+              }}
+            }}
+            """
+        formatted_query_string = query_string.format(
+            first=batch_size, skip=skips)
         if self.client == "CUSTOM":
             response = self.callCustomEndpoint(formatted_query_string)
         else:
@@ -186,7 +197,8 @@ class TheGraph(object):
 
             for pool in response["pools"]:
                 curr_id = pool["id"]
-                curr_pool_token_data = self.getPoolTokens(curr_id, verbose=verbose)
+                curr_pool_token_data = self.getPoolTokens(
+                    curr_id, verbose=verbose)
                 pool_data = {}
                 pool_data["tokens"] = curr_pool_token_data
                 pool_data["poolType"] = pool["poolType"]
@@ -211,7 +223,7 @@ class TheGraph(object):
             response = self.getPools(batch_size, batch_size * i, verbose)
             for pool in response["pools"]:
                 if (
-                    not pool_filter is None
+                    pool_filter is not None
                     and not pool_filter.lower() in pool["poolType"].lower()
                 ):
                     continue
@@ -237,18 +249,19 @@ class TheGraph(object):
             print("Getting data for pool", poolId, "from the subgraph...")
 
         query_string = """
-			query {{
-				pools(where:{{id: "{poolId}"}}) {{
-					totalShares
-					totalLiquidity
-				}}
-			}}
-			"""
+            query {{
+                pools(where:{{id: "{poolId}"}}) {{
+                    totalShares
+                    totalLiquidity
+                }}
+            }}
+            """
         formatted_query_string = query_string.format(poolId=poolId)
         response = self.client.execute(gql(formatted_query_string))
 
         pool = response["pools"][0]
-        pricePerBpt = float(pool["totalLiquidity"]) / float(pool["totalShares"])
+        pricePerBpt = float(pool["totalLiquidity"]) / \
+            float(pool["totalShares"])
 
         if verbose:
             print("Got price data:", pricePerBpt)
@@ -257,19 +270,20 @@ class TheGraph(object):
     def getPoolsAndTokens(self, batch_size, skips, verbose=False):
         self.assertInit()
         query_string = """
-			query {{
-			  pools(first: {first}, skip: {skip}) {{
-			    id
-			    tokens {{
-			      token
-			      {{
-			        id
-			      }}
-			    }}
-			  }}
-			}}
-		"""
-        formatted_query_string = query_string.format(first=batch_size, skip=skips)
+            query {{
+              pools(first: {first}, skip: {skip}) {{
+                id
+                tokens {{
+                  token
+                  {{
+                    id
+                  }}
+                }}
+              }}
+            }}
+        """
+        formatted_query_string = query_string.format(
+            first=batch_size, skip=skips)
 
         response = self.client.execute(gql(formatted_query_string))
         if self.client == "CUSTOM":
@@ -293,7 +307,7 @@ def main():
 
     networks = ["mainnet", "kovan", "polygon", "arbitrum"]
 
-    if not network in networks:
+    if network not in networks:
         print("Network", network, "is not supported!")
         print("Supported networks are:")
         for n in networks:
