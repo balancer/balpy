@@ -31,7 +31,8 @@ def main():
 	print("==============================================================")
 	print();
 	sor_result = bal.balSorQuery(data)
-	swap = sor_result["batchSwap"];
+	swap = sor_result["batchSwap"]
+	
 
 	isFlashSwap = bal.balSwapIsFlashSwap(swap);
 
@@ -41,8 +42,10 @@ def main():
 	print("==============================================================")
 	print();
 	
-	tokens = swap["assets"];
-	amountsIn = swap["limits"];
+	tokens = swap["assets"]
+	amountsIn = swap["limits"]
+	if not tokens:
+		raise ValueError("No tokens provided in swap")
 	if not isFlashSwap:
 		if not bal.erc20HasSufficientBalances(tokens, amountsIn):
 			print("Please fix your insufficient balance before proceeding.")

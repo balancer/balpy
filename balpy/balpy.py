@@ -555,6 +555,7 @@ class balpy(object):
     @cache
     def erc20GetContract(self, tokenAddress):
         # Read files packaged in module
+
         abiPath = os.path.join("abi/ERC20.json")
         f = pkgutil.get_data(__name__, abiPath).decode()
         abi = json.loads(f)
@@ -2705,7 +2706,7 @@ class balpy(object):
         return (sortedTokens, originalIdxToSortedIdx, sortedIdxToOriginalIdx)
 
     def balSwapGetUserData(self, poolType):
-        userDataNull = eth_abi.encode_abi(["uint256"], [0])
+        userDataNull = eth_abi.encode(["uint256"], [0])
         userData = userDataNull
         # for weightedPools, user data is just null, but in the future there may be userData to pass to pools for swaps
         # if poolType == "someFuturePool":
@@ -2941,6 +2942,7 @@ class balpy(object):
         )
 
     def balSorQuery(self, data):
+
         query = data["sor"]
 
         # scale amount based on input/output
