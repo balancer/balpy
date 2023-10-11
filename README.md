@@ -65,3 +65,32 @@ You also must set AT LEAST one of these environment variables to connect to the 
 
 ## Samples
 See README.md in samples/ for more information.
+
+## DEV
+
+# Formatting
+
+```bash
+make fmt
+```
+
+## Linting
+
+```bash
+make lint
+```
+
+Check all linters and formaters and tests.
+
+## Tests
+
+A small number of tests are included for functionaly demonstration.
+
+```bash
+make test
+```
+
+
+
+```bash
+make all
