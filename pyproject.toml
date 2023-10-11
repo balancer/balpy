@@ -16,8 +16,15 @@ jstyleson=">=0.0.2"
 web3="~6"
 multicaller = {path = "../multicaller"}
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pytest="*"
+black = "22.1"
+isort = "^5.12.0"
+flake8 = "^6.1.0"
+autoflake8 = "^0.4.1"
+autopep8 = "^2.0.4"
+click = "8.0.2"
+setuptools = "^68.2.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
