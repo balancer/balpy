@@ -30,6 +30,9 @@ See release on PyPI: https://pypi.org/project/balpy/
 ```bash
 # Install in virtual environment using poetry
 git clone https://github.com/balancer-labs/balpy.git
+# checkout submodules
+git submodule update --init --recursive
+
 cd balpy
 poetry install # Install dependencies and package
 # You can enter the virtual environment using
@@ -62,3 +65,32 @@ You also must set AT LEAST one of these environment variables to connect to the 
 
 ## Samples
 See README.md in samples/ for more information.
+
+## DEV
+
+# Formatting
+
+```bash
+make fmt
+```
+
+## Linting
+
+```bash
+make lint
+```
+
+Check all linters and formaters and tests.
+
+## Tests
+
+A small number of tests are included for functionaly demonstration.
+
+```bash
+make test
+```
+
+
+
+```bash
+make all
