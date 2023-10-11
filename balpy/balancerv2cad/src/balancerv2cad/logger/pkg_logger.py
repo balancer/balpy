@@ -10,11 +10,11 @@ from logging.config import dictConfig
 from pathlib import PosixPath
 from typing import Literal
 
+# balancerv2cader package
+from balancerv2cad import BASE_DIR, DEFAULT_LOGGER_NAME, LOGGING_CONFIG
+
 # 3rd party
 from colorama import Back, Fore, init
-
-# balancerv2cader package
-from balancerv2cad import LOGGING_CONFIG, DEFAULT_LOGGER_NAME, BASE_DIR
 
 init(autoreset=True)
 
@@ -58,7 +58,8 @@ class PackageLogger:
             sys.exit(1)
 
     @staticmethod
-    def get_logger(name: Literal["production"] = DEFAULT_LOGGER_NAME) -> logging.Logger:
+    def get_logger(name: Literal["production"]
+                   = DEFAULT_LOGGER_NAME) -> logging.Logger:
         """
         Return a logger by name.
         Only logger names that are defined in the config

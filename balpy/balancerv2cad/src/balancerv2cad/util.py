@@ -1,4 +1,4 @@
-from decimal import *
+from decimal import ROUND_DOWN, ROUND_UP, Decimal, getcontext
 
 
 def mulUp(a: Decimal, b: Decimal) -> Decimal:
@@ -38,10 +38,10 @@ def complement(a: Decimal) -> Decimal:
 def powUp(a: Decimal, b: Decimal) -> Decimal:
     getcontext().prec = 28
     getcontext().rounding = ROUND_UP
-    return a ** b
+    return a**b
 
 
 def powDown(a: Decimal, b: Decimal) -> Decimal:
     getcontext().prec = 28
     getcontext().rounding = ROUND_DOWN
-    return a ** b
+    return a**b

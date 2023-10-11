@@ -1,8 +1,11 @@
-from decimal import *
-from typing import List
+from decimal import Decimal
+
+from balancerv2cad.BalancerConstants import (
+    AMPLIFICATION_PARAMETER,
+    INIT_POOL_SUPPLY,
+    MIN_FEE,
+)
 from balancerv2cad.StableMath import StableMath
-from balancerv2cad.WeightedPool import WeightedPool
-from balancerv2cad.BalancerConstants import *
 
 
 class StablePool(StableMath):

@@ -1,7 +1,7 @@
-from typing import List
-from balancerv2cad.StableMath import StableMath
-from decimal import *
 import unittest
+from decimal import Decimal, getcontext
+
+from balancerv2cad.StableMath import StableMath
 
 getcontext().prec = 21
 MAX_RELATIVE_ERROR = Decimal(1e-17)
@@ -43,7 +43,8 @@ class TestStableMath(unittest.TestCase):
         assert expectEqualWithError(result, Decimal(36))
 
     def test_calcInGivenOut(stablemath_test):
-        # TODO assert StableMath.calcInGivenOut(2,[222,3112,311],1,1,4) == 0.000002756210410895
+        # TODO assert StableMath.calcInGivenOut(2,[222,3112,311],1,1,4) ==
+        # 0.000002756210410895
         """
         Tests for instance of Decimal
         """
@@ -85,7 +86,9 @@ class TestStableMath(unittest.TestCase):
         assert expectEqualWithError(result, expected)
 
     def test_calcOutGivenIn(stablemath_test):
-        #    def calcOutGivenIn(amplificationParameter: Decimal, balances: list[Decimal], tokenIndexIn: int, tokenIndexOut: int, tokenAmountIn: Decimal):
+        # def calcOutGivenIn(amplificationParameter: Decimal, balances:
+        # list[Decimal], tokenIndexIn: int, tokenIndexOut: int, tokenAmountIn:
+        # Decimal):
         amp = Decimal(10)
         balances = [Decimal(10), Decimal(11), Decimal(12)]
         tokenIndexIn = 0

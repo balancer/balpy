@@ -1,6 +1,5 @@
 from decimal import Decimal
 
-
 BONE = Decimal("1")
 MIN_FEE = Decimal("0.000001")
 MAX_FEE = Decimal("0.1")

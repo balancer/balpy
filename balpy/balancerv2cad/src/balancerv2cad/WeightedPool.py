@@ -1,6 +1,7 @@
 from decimal import Decimal
+
+from balancerv2cad.BalancerConstants import INIT_POOL_SUPPLY, MIN_FEE
 from balancerv2cad.WeightedMath import WeightedMath
-from balancerv2cad.BalancerConstants import *
 
 
 class WeightedPool(WeightedMath):
@@ -78,7 +79,7 @@ class WeightedPool(WeightedMath):
     def set_weights(self, weights: dict):
         if not weights.keys() in self._weights:
             raise Exception("WEIGHT TICKER NOT FOUND, JOIN POOL FIRST")
-        for key in weights:
+        for key, amount in weights.items():
             if isinstance(amount, int) or isinstance(amount, float):
                 amount = Decimal(amount)
             elif not isinstance(amount, Decimal):

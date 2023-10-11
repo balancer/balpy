@@ -3,12 +3,12 @@ Example Driver code
 """
 # standard lib
 
-# third party
-from dotenv import dotenv_values
-
 # package
 import balancerv2cad as ks
 from balancerv2cad.logger import pkg_logger as pl
+
+# third party
+from dotenv import dotenv_values
 
 logger = pl.PackageLogger().get_logger()
 
@@ -34,7 +34,9 @@ def run() -> None:
             ks.__version__,
         )
     except KeyError as error:
-        logger.error("Could not find %s in .env file. Please consult the README", error)
+        logger.error(
+            "Could not find %s in .env file. Please consult the README",
+            error)
         logger.info("Testing for %s@%s", ks.__package__, ks.__version__)
         logger.debug("Testing for %s@%s", ks.__package__, ks.__version__)
         logger.warning("Testing for %s@%s", ks.__package__, ks.__version__)
