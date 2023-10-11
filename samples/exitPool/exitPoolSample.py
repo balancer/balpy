@@ -1,8 +1,10 @@
-import balpy
-import sys
-import os
-import jstyleson
 import json
+import os
+import sys
+
+import jstyleson
+
+import balpy
 
 
 def main():
@@ -27,7 +29,7 @@ def main():
     print()
 
     poolAddress = bal.balPooldIdToAddress(exitData["poolId"])
-    
+
     neededBPTamount = exitData.get("bptAmount", 0)
     if exitData["exitKind"] == "BPT_IN_FOR_EXACT_TOKENS_OUT":
         neededBPTamount = exitData["maxBptAmount"]
@@ -51,5 +53,5 @@ def main():
         print(json.dumps(output, indent=4))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

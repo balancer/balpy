@@ -1,5 +1,7 @@
-import balpy
 import json
+
+import balpy
+
 
 def main():
     network = "mainnet"
@@ -59,12 +61,14 @@ def main():
         "0xe6bcc79f328eec93d4ec8f7ed35534d9ab549faa",
         "0xfd11ccdbdb7ab91cb9427a6d6bf570c95876d195",
         "0x395d8a1d9ad82b5abe558f8abbfe183b27138af4",
-        "0x74cbfaf94a3577c539a9dcee9870a6349a33b34f"
-    ];
+        "0x74cbfaf94a3577c539a9dcee9870a6349a33b34f",
+    ]
 
-    bal = balpy.balpy.balpy(network);
-    output = bal.balGetRebalanceLinearPoolsData(linear_pool_addresses);
+    bal = balpy.balpy.balpy(network)
+    output = bal.balGetRebalanceLinearPoolsData(linear_pool_addresses)
 
-    print(json.dumps(output, indent=4));
-if __name__ == '__main__':
-    main();
+    print(json.dumps(output, indent=4))
+
+
+if __name__ == "__main__":
+    main()

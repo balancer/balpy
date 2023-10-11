@@ -21,9 +21,11 @@ def getPool():
     print("Pool:", poolAddress)
     print("Specialization:", specialization)
 
-    
+
 def getPoolTokenInfo():
-    cash, managed, lastChangeBlock, assetManager = BAL.balVaultGetPoolTokenInfo(POOLID, TOKENADDRESS)
+    cash, managed, lastChangeBlock, assetManager = BAL.balVaultGetPoolTokenInfo(
+        POOLID, TOKENADDRESS
+    )
     print("Cash:", cash)
     print("Managed:", managed)
     print("Last Changed Block:", lastChangeBlock)
@@ -31,13 +33,13 @@ def getPoolTokenInfo():
 
 
 def getPoolTokens():
-	(tokens, balances, lastChangeBlock) = BAL.balVaultGetPoolTokens(POOLID);
-	print("Token\t\t\t\t\t\tBalance (wei)")
-	print("-----\t\t\t\t\t\t-------------")
-	for token, balance in zip(tokens, balances):
-		print(token + "\t" + str(balance));
-	print();
-	print("Last change block:", lastChangeBlock)
+    (tokens, balances, lastChangeBlock) = BAL.balVaultGetPoolTokens(POOLID)
+    print("Token\t\t\t\t\t\tBalance (wei)")
+    print("-----\t\t\t\t\t\t-------------")
+    for token, balance in zip(tokens, balances):
+        print(token + "\t" + str(balance))
+    print()
+    print("Last change block:", lastChangeBlock)
 
 
 def getProtocolFeesCollector():
@@ -45,14 +47,21 @@ def getProtocolFeesCollector():
     print("Protocol fees collector:", protocolFeesCollector)
 
 
-if __name__ == '__main__':
-	functions = [WETH, getAuthorizer, getPool, getPoolTokenInfo, getPoolTokens, getProtocolFeesCollector]
-	print("General Vault Information")
-	print("Pool used:", POOLID)
-	print("Token used:", TOKENADDRESS)
-	print()
-	for function in functions:
-		print("==============================================")
-		print("Information for function:", function.__name__)
-		function()
-		print()
+if __name__ == "__main__":
+    functions = [
+        WETH,
+        getAuthorizer,
+        getPool,
+        getPoolTokenInfo,
+        getPoolTokens,
+        getProtocolFeesCollector,
+    ]
+    print("General Vault Information")
+    print("Pool used:", POOLID)
+    print("Token used:", TOKENADDRESS)
+    print()
+    for function in functions:
+        print("==============================================")
+        print("Information for function:", function.__name__)
+        function()
+        print()
