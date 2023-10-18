@@ -2069,8 +2069,18 @@ class balpy(object):
 		else:
 			return("")
 
+	def balGetApiEndpoint(self, endpoint):
+		return(os.path.join(self.apiEndpoint, endpoint, str(self.networkParams[self.network]["id"])));
+
 	def balGetApiEndpointSor(self):
-		return(os.path.join(self.apiEndpoint, "sor", str(self.networkParams[self.network]["id"])));
+		return(self.balGetApiEndpoint("sor"));
+
+	def balGetApiEndpointPools(self, poolId=None):
+		endpoint = self.balGetApiEndpoint("pools");
+		if poolId is None:
+			return(endpoint);
+		else:
+			return(os.path.join(endpoint, poolId));
 
 	def balSorQuery(self, data):
 		query = data["sor"];
@@ -2099,6 +2109,35 @@ class balpy(object):
 		batch_swap = self.balSorResponseToBatchSwapFormat(data, response.json())
 
 		return(batch_swap)
+
+	def balApiGetPools(self):
+		url = self.balGetApiEndpointPools()
+		success = False
+		resp = None;
+		maxRetries = 5
+		retries = 0
+		delay = 3
+		while not success or retries > maxRetries:
+			response = requests.get(
+				url,
+				headers={'Content-Type': 'application/json'}
+			);
+			if response.status_code == 200:
+				success = True
+				resp = response.json()
+			else:
+				retries += 1
+				print("Query failed, trying in", delay, "seconds")
+				time.sleep(delay)
+		return(resp)
+
+	def balApiGetPool(self, poolId):
+		url = self.balGetApiEndpointPools(poolId)
+		response = requests.get(
+			url,
+			headers={'Content-Type': 'application/json'}
+		);
+		return(response.json())
 
 	def balSorResponseToBatchSwapFormat(self, query, response):
 		sor = query["sor"];
