@@ -2242,7 +2242,7 @@ class balpy(object):
 				pidAndFns.append((poolId, "getPausedState"));
 
 				# === using weighted math ===
-				if poolType in ["Weighted", "LiquidityBootstrapping", "Investment"]:
+				if poolType in ["Weighted", "LiquidityBootstrapping", "Investment", "Managed"]:
 					self.mc.addCall(currPool.address, currPool.abi, 'getNormalizedWeights');
 					pidAndFns.append((poolId, "getNormalizedWeights"));
 
