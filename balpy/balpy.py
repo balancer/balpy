@@ -158,8 +158,9 @@ class balpy(object):
         },
         "base": {
             "id": 8453,
-            "blockExplorerUrl": "https://basescan.org",
+            "blockExplorerUrl": "basescan.org",
             "balFrontend": "app.balancer.fi/#/base",
+        }
     }
 
     apiEndpoint = "https://api.balancer.fi/"
