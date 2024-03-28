@@ -156,6 +156,10 @@ class balpy(object):
             "blockExplorerUrl": "sepolia.etherscan.io",
             "balFrontend": "app.balancer.fi/#/sepolia",
         },
+        "base": {
+            "id": 8453,
+            "blockExplorerUrl": "https://basescan.org",
+            "balFrontend": "app.balancer.fi/#/base",
     }
 
     apiEndpoint = "https://api.balancer.fi/"
